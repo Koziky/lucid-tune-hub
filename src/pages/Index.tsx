@@ -9,6 +9,16 @@ import { VolumeControl } from '@/components/MusicPlayer/VolumeControl';
 import { PlaylistManager } from '@/components/MusicPlayer/PlaylistManager';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const Index = () => {
   const {
@@ -20,11 +30,13 @@ const Index = () => {
     isShuffle,
     repeatMode,
     playlists,
+    allSongs,
     currentPlaylist,
     playerRef,
     setIsPlaying,
     setVolume,
     setCurrentIndex,
+    addToQueue,
     addFromYouTubeUrl,
     removeFromQueue,
     reorderQueue,
@@ -33,12 +45,15 @@ const Index = () => {
     toggleShuffle,
     toggleRepeat,
     createPlaylist,
+    addToPlaylist,
     loadPlaylist,
   } = useMusicPlayer();
 
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [previousVolume, setPreviousVolume] = useState(50);
+  const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -104,10 +119,21 @@ const Index = () => {
     }
   };
 
+  const handleCreatePlaylist = async () => {
+    if (newPlaylistName.trim()) {
+      await createPlaylist(newPlaylistName.trim());
+      setNewPlaylistName('');
+      setIsCreatePlaylistOpen(false);
+    }
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
-        <AppSidebar />
+        <AppSidebar 
+          playlists={playlists} 
+          onCreatePlaylist={() => setIsCreatePlaylistOpen(true)}
+        />
         
         <main className="flex-1 flex flex-col">
           {/* Header */}
@@ -141,9 +167,11 @@ const Index = () => {
                 <Queue
                   queue={queue}
                   currentIndex={currentIndex}
+                  playlists={playlists}
                   onSongClick={setCurrentIndex}
                   onRemove={removeFromQueue}
                   onReorder={reorderQueue}
+                  onAddToPlaylist={addToPlaylist}
                 />
               </div>
             </div>
@@ -205,6 +233,40 @@ const Index = () => {
           )}
         </main>
       </div>
+
+      {/* Create Playlist Dialog */}
+      <Dialog open={isCreatePlaylistOpen} onOpenChange={setIsCreatePlaylistOpen}>
+        <DialogContent className="glass border-border">
+          <DialogHeader>
+            <DialogTitle>Create New Playlist</DialogTitle>
+            <DialogDescription>
+              Give your playlist a name
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            placeholder="My Playlist"
+            value={newPlaylistName}
+            onChange={(e) => setNewPlaylistName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreatePlaylist()}
+            className="bg-background/50"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setIsCreatePlaylistOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreatePlaylist}
+              className="bg-primary text-primary-foreground"
+            >
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 };

@@ -1,18 +1,177 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Song, Playlist, RepeatMode } from '@/types/music';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export const useMusicPlayer = () => {
+  const queryClient = useQueryClient();
   const [queue, setQueue] = useState<Song[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(50);
   const [isShuffle, setIsShuffle] = useState(false);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [currentPlaylist, setCurrentPlaylist] = useState<string | null>(null);
   const playerRef = useRef<any>(null);
   const originalQueueRef = useRef<Song[]>([]);
+
+  // Fetch user's playlists
+  const { data: playlists = [] } = useQuery({
+    queryKey: ['playlists'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data: playlistsData, error: playlistsError } = await supabase
+        .from('playlists')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (playlistsError) throw playlistsError;
+
+      // Fetch songs for each playlist
+      const playlistsWithSongs = await Promise.all(
+        (playlistsData || []).map(async (playlist) => {
+          const { data: playlistSongs, error: songsError } = await supabase
+            .from('playlist_songs')
+            .select(`
+              position,
+              songs (*)
+            `)
+            .eq('playlist_id', playlist.id)
+            .order('position', { ascending: true });
+
+          if (songsError) throw songsError;
+
+          const songs: Song[] = (playlistSongs || []).map((ps: any) => ({
+            id: ps.songs.id,
+            title: ps.songs.title,
+            artist: ps.songs.artist,
+            youtubeId: ps.songs.youtube_id,
+            thumbnail: ps.songs.thumbnail,
+            duration: ps.songs.duration,
+            userId: ps.songs.user_id,
+            createdAt: ps.songs.created_at,
+          }));
+
+          return {
+            id: playlist.id,
+            name: playlist.name,
+            songs,
+            createdAt: new Date(playlist.created_at),
+            userId: playlist.user_id,
+          };
+        })
+      );
+
+      return playlistsWithSongs;
+    },
+  });
+
+  // Fetch all user's songs
+  const { data: allSongs = [] } = useQuery({
+    queryKey: ['songs'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('songs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map(song => ({
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        youtubeId: song.youtube_id,
+        thumbnail: song.thumbnail,
+        duration: song.duration,
+        userId: song.user_id,
+        createdAt: song.created_at,
+      }));
+    },
+  });
+
+  // Create playlist mutation
+  const createPlaylistMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase
+        .from('playlists')
+        .insert({ name, user_id: user.id })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+    },
+  });
+
+  // Add song mutation
+  const addSongMutation = useMutation({
+    mutationFn: async (song: Omit<Song, 'id' | 'userId' | 'createdAt'>) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase
+        .from('songs')
+        .insert({
+          title: song.title,
+          artist: song.artist,
+          youtube_id: song.youtubeId,
+          thumbnail: song.thumbnail,
+          duration: song.duration,
+          user_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['songs'] });
+    },
+  });
+
+  // Add song to playlist mutation
+  const addSongToPlaylistMutation = useMutation({
+    mutationFn: async ({ playlistId, songId }: { playlistId: string; songId: string }) => {
+      // Get current max position
+      const { data: existingSongs } = await supabase
+        .from('playlist_songs')
+        .select('position')
+        .eq('playlist_id', playlistId)
+        .order('position', { ascending: false })
+        .limit(1);
+
+      const position = existingSongs && existingSongs.length > 0 
+        ? existingSongs[0].position + 1 
+        : 0;
+
+      const { error } = await supabase
+        .from('playlist_songs')
+        .insert({
+          playlist_id: playlistId,
+          song_id: songId,
+          position,
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+    },
+  });
 
   const extractYouTubeId = (url: string): string | null => {
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
@@ -20,14 +179,21 @@ export const useMusicPlayer = () => {
     return (match && match[7].length === 11) ? match[7] : null;
   };
 
-  const addToQueue = useCallback((song: Song) => {
+  const addToQueue = useCallback(async (song: Song) => {
     setQueue(prev => [...prev, song]);
     originalQueueRef.current = [...originalQueueRef.current, song];
+    
+    // Save song to database if it doesn't exist
+    const existingSong = allSongs.find(s => s.youtubeId === song.youtubeId);
+    if (!existingSong) {
+      await addSongMutation.mutateAsync(song);
+    }
+    
     toast({
       title: "Added to queue",
       description: `${song.title} by ${song.artist}`,
     });
-  }, []);
+  }, [allSongs, addSongMutation]);
 
   const addFromYouTubeUrl = useCallback(async (url: string) => {
     const videoId = extractYouTubeId(url);
@@ -141,28 +307,34 @@ export const useMusicPlayer = () => {
     });
   }, []);
 
-  const createPlaylist = useCallback((name: string) => {
-    const newPlaylist: Playlist = {
-      id: `playlist-${Date.now()}`,
-      name,
-      songs: [],
-      createdAt: new Date(),
-    };
-    setPlaylists(prev => [...prev, newPlaylist]);
+  const createPlaylist = useCallback(async (name: string) => {
+    const newPlaylist = await createPlaylistMutation.mutateAsync(name);
+    if (!newPlaylist) return '';
     toast({
       title: "Playlist created",
       description: `Created playlist: ${name}`,
     });
     return newPlaylist.id;
-  }, []);
+  }, [createPlaylistMutation]);
 
-  const addToPlaylist = useCallback((playlistId: string, song: Song) => {
-    setPlaylists(prev => prev.map(p => 
-      p.id === playlistId 
-        ? { ...p, songs: [...p.songs, song] }
-        : p
-    ));
-  }, []);
+  const addToPlaylist = useCallback(async (playlistId: string, song: Song) => {
+    // First ensure the song exists in the database
+    let songId = song.id;
+    
+    const existingSong = allSongs.find(s => s.youtubeId === song.youtubeId);
+    if (!existingSong) {
+      const newSong = await addSongMutation.mutateAsync(song);
+      if (!newSong) return;
+      songId = newSong.id;
+    }
+
+    await addSongToPlaylistMutation.mutateAsync({ playlistId, songId });
+    
+    toast({
+      title: "Added to playlist",
+      description: `Added ${song.title} to playlist`,
+    });
+  }, [allSongs, addSongMutation, addSongToPlaylistMutation]);
 
   const loadPlaylist = useCallback((playlistId: string) => {
     const playlist = playlists.find(p => p.id === playlistId);
@@ -187,6 +359,7 @@ export const useMusicPlayer = () => {
     isShuffle,
     repeatMode,
     playlists,
+    allSongs,
     currentPlaylist,
     playerRef,
     setIsPlaying,

@@ -1,6 +1,7 @@
 import { Home, Music2, ListMusic, Plus } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
+import { Playlist } from '@/types/music';
 import {
   Sidebar,
   SidebarContent,
@@ -12,13 +13,19 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const mainItems = [
   { title: 'Home', url: '/', icon: Home },
   { title: 'Your Music', url: '/library', icon: Music2 },
 ];
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  playlists: Playlist[];
+  onCreatePlaylist: () => void;
+}
+
+export function AppSidebar({ playlists, onCreatePlaylist }: AppSidebarProps) {
   const { open } = useSidebar();
   const location = useLocation();
 
@@ -66,12 +73,36 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton className="px-6 py-3 text-sidebar-foreground hover:text-primary transition-colors">
+                <SidebarMenuButton 
+                  onClick={onCreatePlaylist}
+                  className="px-6 py-3 text-sidebar-foreground hover:text-primary transition-colors cursor-pointer"
+                >
                   <Plus className="h-5 w-5" />
                   {open && <span>Create Playlist</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
+            
+            {playlists.length > 0 && (
+              <ScrollArea className="h-[300px]">
+                <SidebarMenu>
+                  {playlists.map((playlist) => (
+                    <SidebarMenuItem key={playlist.id}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={`/playlist/${playlist.id}`}
+                          className="flex items-center gap-3 px-6 py-3 text-sidebar-foreground hover:text-primary transition-colors"
+                          activeClassName="text-primary font-semibold"
+                        >
+                          <ListMusic className="h-5 w-5" />
+                          {open && <span className="truncate">{playlist.name}</span>}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </ScrollArea>
+            )}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

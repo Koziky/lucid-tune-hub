@@ -5,6 +5,8 @@ export interface Song {
   youtubeId: string;
   thumbnail: string;
   duration?: number;
+  userId?: string;
+  createdAt?: string;
 }
 
 export interface Playlist {
@@ -12,6 +14,7 @@ export interface Playlist {
   name: string;
   songs: Song[];
   createdAt: Date;
+  userId?: string;
 }
 
 export type RepeatMode = 'off' | 'one' | 'all';
