@@ -1,7 +1,13 @@
-import { Song } from '@/types/music';
+import { Song, Playlist } from '@/types/music';
 import { Button } from '@/components/ui/button';
-import { X, Music2, GripVertical } from 'lucide-react';
+import { X, Music2, GripVertical, Plus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   DndContext,
   closestCenter,
@@ -23,20 +29,24 @@ import { CSS } from '@dnd-kit/utilities';
 interface QueueProps {
   queue: Song[];
   currentIndex: number;
+  playlists: Playlist[];
   onSongClick: (index: number) => void;
   onRemove: (index: number) => void;
   onReorder: (oldIndex: number, newIndex: number) => void;
+  onAddToPlaylist: (playlistId: string, song: Song) => void;
 }
 
 interface SortableItemProps {
   song: Song;
   index: number;
   isCurrentSong: boolean;
+  playlists: Playlist[];
   onSongClick: (index: number) => void;
   onRemove: (index: number) => void;
+  onAddToPlaylist: (playlistId: string, song: Song) => void;
 }
 
-const SortableItem = ({ song, index, isCurrentSong, onSongClick, onRemove }: SortableItemProps) => {
+const SortableItem = ({ song, index, isCurrentSong, playlists, onSongClick, onRemove, onAddToPlaylist }: SortableItemProps) => {
   const {
     attributes,
     listeners,
@@ -93,6 +103,38 @@ const SortableItem = ({ song, index, isCurrentSong, onSongClick, onRemove }: Sor
         </div>
       </div>
 
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="glass border-border">
+          {playlists.length === 0 ? (
+            <div className="px-2 py-1.5 text-sm text-muted-foreground">
+              No playlists yet
+            </div>
+          ) : (
+            playlists.map((playlist) => (
+              <DropdownMenuItem
+                key={playlist.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddToPlaylist(playlist.id, song);
+                }}
+              >
+                Add to {playlist.name}
+              </DropdownMenuItem>
+            ))
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       <Button
         variant="ghost"
         size="icon"
@@ -108,7 +150,7 @@ const SortableItem = ({ song, index, isCurrentSong, onSongClick, onRemove }: Sor
   );
 };
 
-export const Queue = ({ queue, currentIndex, onSongClick, onRemove, onReorder }: QueueProps) => {
+export const Queue = ({ queue, currentIndex, playlists, onSongClick, onRemove, onReorder, onAddToPlaylist }: QueueProps) => {
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -155,8 +197,10 @@ export const Queue = ({ queue, currentIndex, onSongClick, onRemove, onReorder }:
                   song={song}
                   index={index}
                   isCurrentSong={index === currentIndex}
+                  playlists={playlists}
                   onSongClick={onSongClick}
                   onRemove={onRemove}
+                  onAddToPlaylist={onAddToPlaylist}
                 />
               ))}
             </div>
