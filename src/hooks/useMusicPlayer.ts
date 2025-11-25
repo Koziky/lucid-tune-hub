@@ -60,6 +60,32 @@ export const useMusicPlayer = () => {
     }
   }, [currentIndex]);
 
+  const reorderQueue = useCallback((oldIndex: number, newIndex: number) => {
+    setQueue(prev => {
+      const newQueue = [...prev];
+      const [removed] = newQueue.splice(oldIndex, 1);
+      newQueue.splice(newIndex, 0, removed);
+      
+      // Update current index if needed
+      if (oldIndex === currentIndex) {
+        setCurrentIndex(newIndex);
+      } else if (oldIndex < currentIndex && newIndex >= currentIndex) {
+        setCurrentIndex(prev => prev - 1);
+      } else if (oldIndex > currentIndex && newIndex <= currentIndex) {
+        setCurrentIndex(prev => prev + 1);
+      }
+      
+      return newQueue;
+    });
+    
+    // Update original queue ref if not shuffled
+    if (!isShuffle) {
+      originalQueueRef.current = [...originalQueueRef.current];
+      const [removed] = originalQueueRef.current.splice(oldIndex, 1);
+      originalQueueRef.current.splice(newIndex, 0, removed);
+    }
+  }, [currentIndex, isShuffle]);
+
   const playNext = useCallback(() => {
     if (repeatMode === 'one') {
       playerRef.current?.seekTo(0);
@@ -169,6 +195,7 @@ export const useMusicPlayer = () => {
     addToQueue,
     addFromYouTubeUrl,
     removeFromQueue,
+    reorderQueue,
     playNext,
     playPrevious,
     toggleShuffle,
