@@ -19,7 +19,7 @@ export const AddSong = ({ onAddFromUrl }: AddSongProps) => {
   };
 
   return (
-    <div className="glass glass-highlight rounded-2xl p-6">
+    <div className="glass glass-highlight rounded-xl p-6">
       <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
         <LinkIcon className="h-5 w-5 text-primary" />
         Add from YouTube
@@ -34,7 +34,7 @@ export const AddSong = ({ onAddFromUrl }: AddSongProps) => {
         />
         <Button
           type="submit"
-          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-primary-foreground font-semibold"
         >
           <Plus className="h-5 w-5" />
         </Button>

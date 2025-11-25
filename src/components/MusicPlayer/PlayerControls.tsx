@@ -60,7 +60,7 @@ export const PlayerControls = ({
         <Button
           size="icon"
           onClick={onPlayPause}
-          className="h-12 w-12 rounded-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity shadow-glow"
+          className="h-12 w-12 rounded-full bg-primary hover:bg-primary/90 transition-all text-primary-foreground shadow-glow"
         >
           {isPlaying ? (
             <Pause className="h-6 w-6" fill="currentColor" />

@@ -7,6 +7,8 @@ import { Queue } from '@/components/MusicPlayer/Queue';
 import { AddSong } from '@/components/MusicPlayer/AddSong';
 import { VolumeControl } from '@/components/MusicPlayer/VolumeControl';
 import { PlaylistManager } from '@/components/MusicPlayer/PlaylistManager';
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/AppSidebar';
 
 const Index = () => {
   const {
@@ -25,6 +27,7 @@ const Index = () => {
     setCurrentIndex,
     addFromYouTubeUrl,
     removeFromQueue,
+    reorderQueue,
     playNext,
     playPrevious,
     toggleShuffle,
@@ -57,7 +60,6 @@ const Index = () => {
 
   const handleStateChange = (event: any) => {
     if (event.data === 0) {
-      // Video ended
       playNext();
     }
   };
@@ -103,84 +105,107 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8 overflow-auto">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8 animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent animate-glow">
-            GlassBeats
-          </h1>
-          <p className="text-muted-foreground">Your YouTube Music Player</p>
-        </div>
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full">
+        <AppSidebar />
+        
+        <main className="flex-1 flex flex-col">
+          {/* Header */}
+          <header className="flex items-center gap-4 p-4 border-b border-border bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+            <SidebarTrigger />
+            <h2 className="text-xl font-semibold">Home</h2>
+          </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Now Playing & Controls */}
-          <div className="lg:col-span-2 space-y-6">
-            <NowPlaying song={currentSong} />
-            
-            <div className="glass glass-highlight rounded-2xl p-6 space-y-6">
-              <PlayerControls
-                isPlaying={isPlaying}
-                isShuffle={isShuffle}
-                repeatMode={repeatMode}
-                onPlayPause={handlePlayPause}
-                onPrevious={playPrevious}
-                onNext={playNext}
-                onToggleShuffle={toggleShuffle}
-                onToggleRepeat={toggleRepeat}
-                currentTime={currentTime}
-                duration={duration}
-                onSeek={handleSeek}
-              />
-              
-              <div className="flex justify-center">
-                <VolumeControl
-                  volume={volume}
-                  onVolumeChange={handleVolumeChange}
-                  onMuteToggle={handleMuteToggle}
+          {/* Main Content */}
+          <div className="flex-1 overflow-auto p-6">
+            <div className="max-w-[1800px] mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                {/* Left: Add Song */}
+                <div className="lg:col-span-2">
+                  <AddSong onAddFromUrl={addFromYouTubeUrl} />
+                </div>
+
+                {/* Right: Playlists */}
+                <div>
+                  <PlaylistManager
+                    playlists={playlists}
+                    currentPlaylistId={currentPlaylist}
+                    onCreatePlaylist={createPlaylist}
+                    onLoadPlaylist={loadPlaylist}
+                  />
+                </div>
+              </div>
+
+              {/* Queue */}
+              <div className="mb-6">
+                <Queue
+                  queue={queue}
+                  currentIndex={currentIndex}
+                  onSongClick={setCurrentIndex}
+                  onRemove={removeFromQueue}
+                  onReorder={reorderQueue}
                 />
               </div>
             </div>
-
-            <AddSong onAddFromUrl={addFromYouTubeUrl} />
           </div>
 
-          {/* Right Column - Queue & Playlists */}
-          <div className="space-y-6">
-            <Queue
-              queue={queue}
-              currentIndex={currentIndex}
-              onSongClick={setCurrentIndex}
-              onRemove={removeFromQueue}
-            />
-            
-            <PlaylistManager
-              playlists={playlists}
-              currentPlaylistId={currentPlaylist}
-              onCreatePlaylist={createPlaylist}
-              onLoadPlaylist={loadPlaylist}
-            />
-          </div>
-        </div>
+          {/* Bottom Player Bar */}
+          <div className="border-t border-border bg-card/95 backdrop-blur-md p-4 sticky bottom-0">
+            <div className="max-w-[1800px] mx-auto">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                {/* Left: Now Playing */}
+                <div className="md:col-span-1">
+                  <NowPlaying song={currentSong} />
+                </div>
 
-        {/* Hidden YouTube Player */}
-        {currentSong && (
-          <div className="hidden">
-            <YouTube
-              videoId={currentSong.youtubeId}
-              opts={{
-                playerVars: {
-                  autoplay: isPlaying ? 1 : 0,
-                  controls: 0,
-                },
-              }}
-              onReady={handleReady}
-              onStateChange={handleStateChange}
-            />
+                {/* Center: Player Controls */}
+                <div className="md:col-span-1">
+                  <PlayerControls
+                    isPlaying={isPlaying}
+                    isShuffle={isShuffle}
+                    repeatMode={repeatMode}
+                    onPlayPause={handlePlayPause}
+                    onPrevious={playPrevious}
+                    onNext={playNext}
+                    onToggleShuffle={toggleShuffle}
+                    onToggleRepeat={toggleRepeat}
+                    currentTime={currentTime}
+                    duration={duration}
+                    onSeek={handleSeek}
+                  />
+                </div>
+
+                {/* Right: Volume */}
+                <div className="md:col-span-1 flex justify-end">
+                  <VolumeControl
+                    volume={volume}
+                    onVolumeChange={handleVolumeChange}
+                    onMuteToggle={handleMuteToggle}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-        )}
+
+          {/* Hidden YouTube Player */}
+          {currentSong && (
+            <div className="hidden">
+              <YouTube
+                videoId={currentSong.youtubeId}
+                opts={{
+                  playerVars: {
+                    autoplay: isPlaying ? 1 : 0,
+                    controls: 0,
+                  },
+                }}
+                onReady={handleReady}
+                onStateChange={handleStateChange}
+              />
+            </div>
+          )}
+        </main>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 

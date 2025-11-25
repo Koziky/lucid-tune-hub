@@ -30,7 +30,7 @@ export const PlaylistManager = ({
   };
 
   return (
-    <div className="glass glass-highlight rounded-2xl p-6">
+    <div className="glass glass-highlight rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold flex items-center gap-2">
           <ListMusic className="h-5 w-5 text-primary" />
@@ -56,13 +56,13 @@ export const PlaylistManager = ({
             className="bg-background/50"
             autoFocus
           />
-          <Button onClick={handleCreate} size="sm">
+          <Button onClick={handleCreate} size="sm" className="bg-primary text-primary-foreground">
             Create
           </Button>
         </div>
       )}
 
-      <ScrollArea className="h-[300px]">
+      <ScrollArea className="h-[200px]">
         <div className="space-y-2">
           {playlists.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
