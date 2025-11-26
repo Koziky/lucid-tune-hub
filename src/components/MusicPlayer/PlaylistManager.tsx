@@ -21,9 +21,9 @@ export const PlaylistManager = ({
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (newPlaylistName.trim()) {
-      onCreatePlaylist(newPlaylistName.trim());
+      await onCreatePlaylist(newPlaylistName.trim());
       setNewPlaylistName('');
       setIsCreating(false);
     }
