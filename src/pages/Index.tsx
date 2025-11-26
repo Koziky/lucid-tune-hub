@@ -12,7 +12,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Music2, Play, LogOut } from 'lucide-react';
+import { Music2, Play, LogOut, Trash2, PlayCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
@@ -22,6 +22,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const Index = () => {
   const {
@@ -50,6 +60,10 @@ const Index = () => {
     createPlaylist,
     addToPlaylist,
     loadPlaylist,
+    deletePlaylist,
+    updatePlaylist,
+    deleteSong,
+    playAllSongs,
   } = useMusicPlayer();
 
   const [currentTime, setCurrentTime] = useState(0);
@@ -58,6 +72,9 @@ const Index = () => {
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [isYourMusicOpen, setIsYourMusicOpen] = useState(false);
+  const [editingPlaylist, setEditingPlaylist] = useState<{ id: string; name: string } | null>(null);
+  const [deleteConfirmPlaylist, setDeleteConfirmPlaylist] = useState<string | null>(null);
+  const [deleteSongId, setDeleteSongId] = useState<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -135,12 +152,42 @@ const Index = () => {
     await supabase.auth.signOut();
   };
 
+  const handleEditPlaylist = (playlistId: string, currentName: string) => {
+    setEditingPlaylist({ id: playlistId, name: currentName });
+    setNewPlaylistName(currentName);
+  };
+
+  const handleUpdatePlaylist = async () => {
+    if (editingPlaylist && newPlaylistName.trim()) {
+      await updatePlaylist(editingPlaylist.id, newPlaylistName.trim());
+      setEditingPlaylist(null);
+      setNewPlaylistName('');
+    }
+  };
+
+  const handleDeletePlaylist = async () => {
+    if (deleteConfirmPlaylist) {
+      await deletePlaylist(deleteConfirmPlaylist);
+      setDeleteConfirmPlaylist(null);
+    }
+  };
+
+  const handleDeleteSong = async () => {
+    if (deleteSongId) {
+      await deleteSong(deleteSongId);
+      setDeleteSongId(null);
+    }
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
         <AppSidebar 
           playlists={playlists} 
           onCreatePlaylist={() => setIsCreatePlaylistOpen(true)}
+          onOpenYourMusic={() => setIsYourMusicOpen(true)}
+          onEditPlaylist={handleEditPlaylist}
+          onDeletePlaylist={(id) => setDeleteConfirmPlaylist(id)}
         />
         
         <main className="flex-1 flex flex-col">
@@ -179,21 +226,6 @@ const Index = () => {
                     onLoadPlaylist={loadPlaylist}
                   />
                 </div>
-              </div>
-
-              {/* Your Music Button */}
-              <div className="mb-6">
-                <Button
-                  onClick={() => setIsYourMusicOpen(true)}
-                  className="w-full glass glass-highlight p-8 h-auto flex flex-col items-center gap-4 hover:bg-primary/10"
-                  variant="ghost"
-                >
-                  <Music2 className="h-12 w-12 text-primary" />
-                  <div>
-                    <h2 className="text-2xl font-bold">Your Music</h2>
-                    <p className="text-muted-foreground">{allSongs.length} songs</p>
-                  </div>
-                </Button>
               </div>
 
               {/* Queue */}
@@ -302,14 +334,94 @@ const Index = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Playlist Dialog */}
+      <Dialog open={editingPlaylist !== null} onOpenChange={(open) => !open && setEditingPlaylist(null)}>
+        <DialogContent className="glass border-border">
+          <DialogHeader>
+            <DialogTitle>Edit Playlist</DialogTitle>
+            <DialogDescription>
+              Change the playlist name
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            placeholder="Playlist name"
+            value={newPlaylistName}
+            onChange={(e) => setNewPlaylistName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleUpdatePlaylist()}
+            className="bg-background/50"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditingPlaylist(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdatePlaylist} className="bg-primary text-primary-foreground">
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Playlist Confirmation */}
+      <AlertDialog open={deleteConfirmPlaylist !== null} onOpenChange={(open) => !open && setDeleteConfirmPlaylist(null)}>
+        <AlertDialogContent className="glass border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Playlist?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the playlist.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeletePlaylist} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Song Confirmation */}
+      <AlertDialog open={deleteSongId !== null} onOpenChange={(open) => !open && setDeleteSongId(null)}>
+        <AlertDialogContent className="glass border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Song?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the song from your library and all playlists.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteSong} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Your Music Dialog */}
       <Dialog open={isYourMusicOpen} onOpenChange={setIsYourMusicOpen}>
         <DialogContent className="glass border-border max-w-6xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle className="text-2xl">Your Music</DialogTitle>
-            <DialogDescription>
-              {allSongs.length} songs in your library
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-2xl">Your Music</DialogTitle>
+                <DialogDescription>
+                  {allSongs.length} songs in your library
+                </DialogDescription>
+              </div>
+              {allSongs.length > 0 && (
+                <Button
+                  onClick={() => {
+                    playAllSongs();
+                    setIsYourMusicOpen(false);
+                  }}
+                  className="bg-primary text-primary-foreground"
+                >
+                  <PlayCircle className="h-4 w-4 mr-2" />
+                  Play All
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           {allSongs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
@@ -325,7 +437,7 @@ const Index = () => {
                 {allSongs.map((song) => (
                   <div
                     key={song.id}
-                    className="group relative rounded-lg overflow-hidden bg-muted/30 hover:bg-muted/50 transition-all cursor-pointer"
+                    className="group relative rounded-lg overflow-hidden bg-muted/30 hover:bg-muted/50 transition-all"
                   >
                     <div className="aspect-square relative">
                       <img
@@ -333,16 +445,23 @@ const Index = () => {
                         alt={song.title}
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                         <Button
                           size="icon"
                           className="h-12 w-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
                           onClick={() => {
                             addToQueue(song);
-                            setIsYourMusicOpen(false);
                           }}
                         >
                           <Play className="h-6 w-6 ml-0.5" fill="currentColor" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="destructive"
+                          className="h-8 w-8 rounded-full"
+                          onClick={() => setDeleteSongId(song.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>

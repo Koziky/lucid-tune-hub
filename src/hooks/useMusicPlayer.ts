@@ -173,6 +173,51 @@ export const useMusicPlayer = () => {
     },
   });
 
+  // Delete playlist mutation
+  const deletePlaylistMutation = useMutation({
+    mutationFn: async (playlistId: string) => {
+      const { error } = await supabase
+        .from('playlists')
+        .delete()
+        .eq('id', playlistId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+    },
+  });
+
+  // Update playlist mutation
+  const updatePlaylistMutation = useMutation({
+    mutationFn: async ({ playlistId, name }: { playlistId: string; name: string }) => {
+      const { error } = await supabase
+        .from('playlists')
+        .update({ name })
+        .eq('id', playlistId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+    },
+  });
+
+  // Delete song mutation
+  const deleteSongMutation = useMutation({
+    mutationFn: async (songId: string) => {
+      const { error } = await supabase
+        .from('songs')
+        .delete()
+        .eq('id', songId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['songs'] });
+    },
+  });
+
   const extractYouTubeId = (url: string): string | null => {
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
     const match = url.match(regExp);
@@ -350,6 +395,43 @@ export const useMusicPlayer = () => {
     }
   }, [playlists]);
 
+  const deletePlaylist = useCallback(async (playlistId: string) => {
+    await deletePlaylistMutation.mutateAsync(playlistId);
+    toast({
+      title: "Playlist deleted",
+      description: "Playlist has been removed",
+    });
+  }, [deletePlaylistMutation]);
+
+  const updatePlaylist = useCallback(async (playlistId: string, name: string) => {
+    await updatePlaylistMutation.mutateAsync({ playlistId, name });
+    toast({
+      title: "Playlist updated",
+      description: `Renamed to: ${name}`,
+    });
+  }, [updatePlaylistMutation]);
+
+  const deleteSong = useCallback(async (songId: string) => {
+    await deleteSongMutation.mutateAsync(songId);
+    toast({
+      title: "Song deleted",
+      description: "Song removed from your library",
+    });
+  }, [deleteSongMutation]);
+
+  const playAllSongs = useCallback(() => {
+    if (allSongs.length > 0) {
+      setQueue(allSongs);
+      originalQueueRef.current = allSongs;
+      setCurrentIndex(0);
+      setIsPlaying(true);
+      toast({
+        title: "Playing all songs",
+        description: `${allSongs.length} songs in queue`,
+      });
+    }
+  }, [allSongs]);
+
   return {
     queue,
     currentSong: queue[currentIndex],
@@ -376,5 +458,9 @@ export const useMusicPlayer = () => {
     createPlaylist,
     addToPlaylist,
     loadPlaylist,
+    deletePlaylist,
+    updatePlaylist,
+    deleteSong,
+    playAllSongs,
   };
 };

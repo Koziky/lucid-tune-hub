@@ -139,7 +139,13 @@ const PlaylistDetail = () => {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
-        <AppSidebar playlists={playlists} onCreatePlaylist={() => {}} />
+        <AppSidebar 
+          playlists={playlists} 
+          onCreatePlaylist={() => {}} 
+          onOpenYourMusic={() => {}}
+          onEditPlaylist={() => {}}
+          onDeletePlaylist={() => {}}
+        />
 
         <main className="flex-1 flex flex-col">
           <header className="flex items-center gap-4 p-4 border-b border-border bg-background/50 backdrop-blur-sm sticky top-0 z-10">

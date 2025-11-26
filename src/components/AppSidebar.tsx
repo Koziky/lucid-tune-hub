@@ -1,4 +1,4 @@
-import { Home, Music2, ListMusic, Plus } from 'lucide-react';
+import { Home, Music2, ListMusic, Plus, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { Playlist } from '@/types/music';
@@ -14,6 +14,13 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 
 const mainItems = [
   { title: 'Home', url: '/', icon: Home },
@@ -22,9 +29,18 @@ const mainItems = [
 interface AppSidebarProps {
   playlists: Playlist[];
   onCreatePlaylist: () => void;
+  onOpenYourMusic: () => void;
+  onEditPlaylist: (playlistId: string, currentName: string) => void;
+  onDeletePlaylist: (playlistId: string) => void;
 }
 
-export function AppSidebar({ playlists, onCreatePlaylist }: AppSidebarProps) {
+export function AppSidebar({ 
+  playlists, 
+  onCreatePlaylist, 
+  onOpenYourMusic,
+  onEditPlaylist,
+  onDeletePlaylist 
+}: AppSidebarProps) {
   const { open } = useSidebar();
   const location = useLocation();
 
@@ -57,6 +73,15 @@ export function AppSidebar({ playlists, onCreatePlaylist }: AppSidebarProps) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={onOpenYourMusic}
+                  className="px-6 py-3 text-sidebar-foreground hover:text-primary transition-colors cursor-pointer"
+                >
+                  <Music2 className="h-5 w-5" />
+                  {open && <span>Your Music</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -87,16 +112,47 @@ export function AppSidebar({ playlists, onCreatePlaylist }: AppSidebarProps) {
                 <SidebarMenu>
                   {playlists.map((playlist) => (
                     <SidebarMenuItem key={playlist.id}>
-                      <SidebarMenuButton asChild>
-                        <NavLink
-                          to={`/playlist/${playlist.id}`}
-                          className="flex items-center gap-3 px-6 py-3 text-sidebar-foreground hover:text-primary transition-colors"
-                          activeClassName="text-primary font-semibold"
-                        >
-                          <ListMusic className="h-5 w-5" />
-                          {open && <span className="truncate">{playlist.name}</span>}
-                        </NavLink>
-                      </SidebarMenuButton>
+                      <div className="group flex items-center">
+                        <SidebarMenuButton asChild className="flex-1">
+                          <NavLink
+                            to={`/playlist/${playlist.id}`}
+                            className="flex items-center gap-3 px-6 py-3 text-sidebar-foreground hover:text-primary transition-colors"
+                            activeClassName="text-primary font-semibold"
+                          >
+                            <ListMusic className="h-5 w-5" />
+                            {open && <span className="truncate">{playlist.name}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                        {open && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="glass border-border">
+                              <DropdownMenuItem
+                                onClick={() => onEditPlaylist(playlist.id, playlist.name)}
+                                className="cursor-pointer"
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit Name
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => onDeletePlaylist(playlist.id)}
+                                className="cursor-pointer text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>
