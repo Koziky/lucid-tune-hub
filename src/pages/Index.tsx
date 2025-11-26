@@ -11,6 +11,9 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Music2, Play, LogOut } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -127,6 +130,10 @@ const Index = () => {
     }
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
@@ -137,9 +144,20 @@ const Index = () => {
         
         <main className="flex-1 flex flex-col">
           {/* Header */}
-          <header className="flex items-center gap-4 p-4 border-b border-border bg-background/50 backdrop-blur-sm sticky top-0 z-10">
-            <SidebarTrigger />
-            <h2 className="text-xl font-semibold">Home</h2>
+          <header className="flex items-center justify-between gap-4 p-4 border-b border-border bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger />
+              <h2 className="text-xl font-semibold">Home</h2>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="flex items-center gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
           </header>
 
           {/* Main Content */}
@@ -160,6 +178,54 @@ const Index = () => {
                     onLoadPlaylist={loadPlaylist}
                   />
                 </div>
+              </div>
+
+              {/* Your Music */}
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold mb-4">Your Music</h2>
+                {allSongs.length === 0 ? (
+                  <div className="glass glass-highlight rounded-xl p-12 text-center">
+                    <Music2 className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                    <h3 className="text-xl font-semibold mb-2">No music yet</h3>
+                    <p className="text-muted-foreground">
+                      Add YouTube videos to start building your collection
+                    </p>
+                  </div>
+                ) : (
+                  <div className="glass glass-highlight rounded-xl p-6">
+                    <ScrollArea className="h-[400px]">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        {allSongs.map((song) => (
+                          <div
+                            key={song.id}
+                            className="group relative rounded-lg overflow-hidden bg-muted/30 hover:bg-muted/50 transition-all cursor-pointer"
+                          >
+                            <div className="aspect-square relative">
+                              <img
+                                src={song.thumbnail}
+                                alt={song.title}
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Button
+                                  size="icon"
+                                  className="h-12 w-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                                  onClick={() => addToQueue(song)}
+                                >
+                                  <Play className="h-6 w-6 ml-0.5" fill="currentColor" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="p-3">
+                              <h4 className="font-semibold text-sm truncate">{song.title}</h4>
+                              <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
               </div>
 
               {/* Queue */}
