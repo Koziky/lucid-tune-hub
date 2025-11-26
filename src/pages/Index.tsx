@@ -57,6 +57,7 @@ const Index = () => {
   const [previousVolume, setPreviousVolume] = useState(50);
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [isYourMusicOpen, setIsYourMusicOpen] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -180,52 +181,19 @@ const Index = () => {
                 </div>
               </div>
 
-              {/* Your Music */}
+              {/* Your Music Button */}
               <div className="mb-6">
-                <h2 className="text-2xl font-bold mb-4">Your Music</h2>
-                {allSongs.length === 0 ? (
-                  <div className="glass glass-highlight rounded-xl p-12 text-center">
-                    <Music2 className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                    <h3 className="text-xl font-semibold mb-2">No music yet</h3>
-                    <p className="text-muted-foreground">
-                      Add YouTube videos to start building your collection
-                    </p>
+                <Button
+                  onClick={() => setIsYourMusicOpen(true)}
+                  className="w-full glass glass-highlight p-8 h-auto flex flex-col items-center gap-4 hover:bg-primary/10"
+                  variant="ghost"
+                >
+                  <Music2 className="h-12 w-12 text-primary" />
+                  <div>
+                    <h2 className="text-2xl font-bold">Your Music</h2>
+                    <p className="text-muted-foreground">{allSongs.length} songs</p>
                   </div>
-                ) : (
-                  <div className="glass glass-highlight rounded-xl p-6">
-                    <ScrollArea className="h-[400px]">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                        {allSongs.map((song) => (
-                          <div
-                            key={song.id}
-                            className="group relative rounded-lg overflow-hidden bg-muted/30 hover:bg-muted/50 transition-all cursor-pointer"
-                          >
-                            <div className="aspect-square relative">
-                              <img
-                                src={song.thumbnail}
-                                alt={song.title}
-                                className="w-full h-full object-cover"
-                              />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <Button
-                                  size="icon"
-                                  className="h-12 w-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                                  onClick={() => addToQueue(song)}
-                                >
-                                  <Play className="h-6 w-6 ml-0.5" fill="currentColor" />
-                                </Button>
-                              </div>
-                            </div>
-                            <div className="p-3">
-                              <h4 className="font-semibold text-sm truncate">{song.title}</h4>
-                              <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                )}
+                </Button>
               </div>
 
               {/* Queue */}
@@ -331,6 +299,62 @@ const Index = () => {
               Create
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Your Music Dialog */}
+      <Dialog open={isYourMusicOpen} onOpenChange={setIsYourMusicOpen}>
+        <DialogContent className="glass border-border max-w-6xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Your Music</DialogTitle>
+            <DialogDescription>
+              {allSongs.length} songs in your library
+            </DialogDescription>
+          </DialogHeader>
+          {allSongs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Music2 className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />
+              <h3 className="text-xl font-semibold mb-2">No music yet</h3>
+              <p className="text-muted-foreground">
+                Add YouTube videos to start building your collection
+              </p>
+            </div>
+          ) : (
+            <ScrollArea className="h-[500px] pr-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {allSongs.map((song) => (
+                  <div
+                    key={song.id}
+                    className="group relative rounded-lg overflow-hidden bg-muted/30 hover:bg-muted/50 transition-all cursor-pointer"
+                  >
+                    <div className="aspect-square relative">
+                      <img
+                        src={song.thumbnail}
+                        alt={song.title}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Button
+                          size="icon"
+                          className="h-12 w-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                          onClick={() => {
+                            addToQueue(song);
+                            setIsYourMusicOpen(false);
+                          }}
+                        >
+                          <Play className="h-6 w-6 ml-0.5" fill="currentColor" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <h4 className="font-semibold text-sm truncate">{song.title}</h4>
+                      <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
         </DialogContent>
       </Dialog>
     </SidebarProvider>
