@@ -17,7 +17,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const mainItems = [
   { title: 'Home', url: '/', icon: Home },
-  { title: 'Your Music', url: '/library', icon: Music2 },
 ];
 
 interface AppSidebarProps {
