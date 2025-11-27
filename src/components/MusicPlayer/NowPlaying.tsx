@@ -1,5 +1,6 @@
 import { Song } from '@/types/music';
-import { Music } from 'lucide-react';
+import { Music, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface NowPlayingProps {
   song: Song | undefined;
@@ -18,6 +19,10 @@ export const NowPlaying = ({ song }: NowPlayingProps) => {
     );
   }
 
+  const handleOpenYouTube = () => {
+    window.open(`https://www.youtube.com/watch?v=${song.youtubeId}`, '_blank');
+  };
+
   return (
     <div className="flex items-center gap-6">
       <div className="relative group flex-shrink-0">
@@ -32,6 +37,16 @@ export const NowPlaying = ({ song }: NowPlayingProps) => {
         <h2 className="text-lg font-bold truncate">{song.title}</h2>
         <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
       </div>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleOpenYouTube}
+        className="flex-shrink-0"
+        title="Open on YouTube"
+      >
+        <ExternalLink className="h-5 w-5" />
+      </Button>
     </div>
   );
 };
