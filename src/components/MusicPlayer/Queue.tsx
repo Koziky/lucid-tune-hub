@@ -1,6 +1,6 @@
 import { Song, Playlist } from '@/types/music';
 import { Button } from '@/components/ui/button';
-import { X, Music2, GripVertical, Plus } from 'lucide-react';
+import { X, Music2, GripVertical, Plus, ExternalLink } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   DropdownMenu,
@@ -134,6 +134,18 @@ const SortableItem = ({ song, index, isCurrentSong, playlists, onSongClick, onRe
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={(e) => {
+          e.stopPropagation();
+          window.open(`https://www.youtube.com/watch?v=${song.youtubeId}`, '_blank');
+        }}
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <ExternalLink className="h-4 w-4" />
+      </Button>
 
       <Button
         variant="ghost"

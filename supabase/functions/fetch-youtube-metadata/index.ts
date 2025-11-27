@@ -13,42 +13,28 @@ serve(async (req) => {
 
   try {
     const { videoId } = await req.json();
-    
+
     if (!videoId) {
       throw new Error('Video ID is required');
     }
 
-    const apiKey = Deno.env.get('YOUTUBE_API_KEY');
-    if (!apiKey) {
-      throw new Error('YouTube API key not configured');
-    }
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(videoUrl)}&format=json`;
 
-    const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoId}&key=${apiKey}`
-    );
+    const response = await fetch(oembedUrl);
 
     if (!response.ok) {
-      throw new Error(`YouTube API error: ${response.status}`);
+      throw new Error(`YouTube oEmbed error: ${response.status}`);
     }
 
     const data = await response.json();
-    
-    if (!data.items || data.items.length === 0) {
-      throw new Error('Video not found');
-    }
-
-    const video = data.items[0];
-    const snippet = video.snippet;
-    
-    // Parse duration from ISO 8601 format (PT1H2M10S) to seconds
-    const duration = parseDuration(video.contentDetails.duration);
 
     return new Response(
       JSON.stringify({
-        title: snippet.title,
-        artist: snippet.channelTitle,
-        thumbnail: snippet.thumbnails.medium.url,
-        duration,
+        title: data.title,
+        artist: data.author_name,
+        thumbnail: data.thumbnail_url,
+        duration: null,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -57,21 +43,10 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { 
+      {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   }
 });
-
-function parseDuration(isoDuration: string): number {
-  const match = isoDuration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  if (!match) return 0;
-  
-  const hours = parseInt(match[1] || '0');
-  const minutes = parseInt(match[2] || '0');
-  const seconds = parseInt(match[3] || '0');
-  
-  return hours * 3600 + minutes * 60 + seconds;
-}
