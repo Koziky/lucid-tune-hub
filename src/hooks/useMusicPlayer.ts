@@ -252,12 +252,23 @@ export const useMusicPlayer = () => {
     }
 
     try {
+      console.log('Fetching metadata for video:', videoId);
+      
       // Fetch video metadata from YouTube API
       const { data, error } = await supabase.functions.invoke('fetch-youtube-metadata', {
         body: { videoId },
       });
 
-      if (error) throw error;
+      console.log('Metadata response:', { data, error });
+
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw error;
+      }
+
+      if (!data || !data.title) {
+        throw new Error('Invalid response from metadata service');
+      }
 
       const song: Song = {
         id: `${Date.now()}-${videoId}`,
@@ -268,13 +279,25 @@ export const useMusicPlayer = () => {
         duration: data.duration,
       };
 
+      console.log('Adding song to queue:', song);
       addToQueue(song);
     } catch (error) {
       console.error('Error fetching video metadata:', error);
+      
+      // Fallback to basic song object
+      const song: Song = {
+        id: `${Date.now()}-${videoId}`,
+        title: 'YouTube Video',
+        artist: 'Unknown Artist',
+        youtubeId: videoId,
+        thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+      };
+      
+      addToQueue(song);
+      
       toast({
-        title: "Error loading video",
-        description: "Could not fetch video details. Please try again.",
-        variant: "destructive",
+        title: "Using basic info",
+        description: "Could not fetch full video details",
       });
     }
   }, [addToQueue]);
