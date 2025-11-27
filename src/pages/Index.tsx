@@ -12,7 +12,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Music2, Play, LogOut, Trash2, PlayCircle } from 'lucide-react';
+import { Music2, Play, LogOut, Trash2, PlayCircle, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
@@ -75,6 +75,7 @@ const Index = () => {
   const [editingPlaylist, setEditingPlaylist] = useState<{ id: string; name: string } | null>(null);
   const [deleteConfirmPlaylist, setDeleteConfirmPlaylist] = useState<string | null>(null);
   const [deleteSongId, setDeleteSongId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -86,6 +87,34 @@ const Index = () => {
     return () => clearInterval(interval);
   }, [isPlaying]);
 
+  // Media Session API for background playback
+  useEffect(() => {
+    if ('mediaSession' in navigator && currentSong) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentSong.title,
+        artist: currentSong.artist,
+        artwork: [
+          { src: currentSong.thumbnail, sizes: '512x512', type: 'image/jpeg' }
+        ]
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        if (playerRef.current) {
+          playerRef.current.playVideo();
+          setIsPlaying(true);
+        }
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        if (playerRef.current) {
+          playerRef.current.pauseVideo();
+          setIsPlaying(false);
+        }
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', playPrevious);
+      navigator.mediaSession.setActionHandler('nexttrack', playNext);
+    }
+  }, [currentSong, setIsPlaying, playPrevious, playNext]);
+
   const handleReady = (event: any) => {
     playerRef.current = event.target;
     setDuration(event.target.getDuration());
@@ -95,8 +124,13 @@ const Index = () => {
   };
 
   const handleStateChange = (event: any) => {
+    // 0 = ended, 1 = playing, 2 = paused
     if (event.data === 0) {
       playNext();
+    } else if (event.data === 1) {
+      setIsPlaying(true);
+    } else if (event.data === 2) {
+      setIsPlaying(false);
     }
   };
 
@@ -402,24 +436,37 @@ const Index = () => {
       <Dialog open={isYourMusicOpen} onOpenChange={setIsYourMusicOpen}>
         <DialogContent className="glass border-border max-w-6xl max-h-[80vh]">
           <DialogHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle className="text-2xl">Your Music</DialogTitle>
-                <DialogDescription>
-                  {allSongs.length} songs in your library
-                </DialogDescription>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <DialogTitle className="text-2xl">Your Music</DialogTitle>
+                  <DialogDescription>
+                    {allSongs.length} songs in your library
+                  </DialogDescription>
+                </div>
+                {allSongs.length > 0 && (
+                  <Button
+                    onClick={() => {
+                      playAllSongs();
+                      setIsYourMusicOpen(false);
+                    }}
+                    className="bg-primary text-primary-foreground"
+                  >
+                    <PlayCircle className="h-4 w-4 mr-2" />
+                    Play All
+                  </Button>
+                )}
               </div>
               {allSongs.length > 0 && (
-                <Button
-                  onClick={() => {
-                    playAllSongs();
-                    setIsYourMusicOpen(false);
-                  }}
-                  className="bg-primary text-primary-foreground"
-                >
-                  <PlayCircle className="h-4 w-4 mr-2" />
-                  Play All
-                </Button>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search songs..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 bg-background/50"
+                  />
+                </div>
               )}
             </div>
           </DialogHeader>
@@ -434,7 +481,12 @@ const Index = () => {
           ) : (
             <ScrollArea className="h-[500px] pr-4">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {allSongs.map((song) => (
+                {allSongs
+                  .filter(song => 
+                    song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    song.artist.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map((song) => (
                   <div
                     key={song.id}
                     className="group relative rounded-lg overflow-hidden bg-muted/30 hover:bg-muted/50 transition-all"
@@ -471,6 +523,14 @@ const Index = () => {
                     </div>
                   </div>
                 ))}
+                {allSongs.filter(song => 
+                  song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  song.artist.toLowerCase().includes(searchQuery.toLowerCase())
+                ).length === 0 && searchQuery && (
+                  <div className="col-span-full text-center py-12 text-muted-foreground">
+                    No songs found matching "{searchQuery}"
+                  </div>
+                )}
               </div>
             </ScrollArea>
           )}

@@ -251,17 +251,32 @@ export const useMusicPlayer = () => {
       return;
     }
 
-    // In a real app, you'd fetch video details from YouTube API
-    // For now, we'll create a basic song object
-    const song: Song = {
-      id: `${Date.now()}-${videoId}`,
-      title: 'YouTube Video',
-      artist: 'Unknown Artist',
-      youtubeId: videoId,
-      thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
-    };
+    try {
+      // Fetch video metadata from YouTube API
+      const { data, error } = await supabase.functions.invoke('fetch-youtube-metadata', {
+        body: { videoId },
+      });
 
-    addToQueue(song);
+      if (error) throw error;
+
+      const song: Song = {
+        id: `${Date.now()}-${videoId}`,
+        title: data.title,
+        artist: data.artist,
+        youtubeId: videoId,
+        thumbnail: data.thumbnail,
+        duration: data.duration,
+      };
+
+      addToQueue(song);
+    } catch (error) {
+      console.error('Error fetching video metadata:', error);
+      toast({
+        title: "Error loading video",
+        description: "Could not fetch video details. Please try again.",
+        variant: "destructive",
+      });
+    }
   }, [addToQueue]);
 
   const removeFromQueue = useCallback((index: number) => {
