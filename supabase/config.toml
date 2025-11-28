@@ -1,4 +1,11 @@
 project_id = "tjerobfmbwqaftwrttzh"
 
+[api]
+enabled = true
+port = 54321
+
 [functions.fetch-youtube-metadata]
+verify_jwt = false
+
+[functions.spotify-import]
 verify_jwt = false

@@ -1,4 +1,4 @@
-import { Home, Music2, ListMusic, Plus, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Home, Music2, ListMusic, Plus, MoreVertical, Pencil, Trash2, Heart, Clock } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { Playlist } from '@/types/music';
@@ -28,18 +28,24 @@ const mainItems = [
 
 interface AppSidebarProps {
   playlists: Playlist[];
+  likedSongsCount?: number;
+  recentlyPlayedCount?: number;
   onCreatePlaylist: () => void;
   onOpenYourMusic: () => void;
   onEditPlaylist: (playlistId: string, currentName: string) => void;
   onDeletePlaylist: (playlistId: string) => void;
+  onPlayLikedSongs?: () => void;
 }
 
 export function AppSidebar({ 
   playlists, 
+  likedSongsCount = 0,
+  recentlyPlayedCount = 0,
   onCreatePlaylist, 
   onOpenYourMusic,
   onEditPlaylist,
-  onDeletePlaylist 
+  onDeletePlaylist,
+  onPlayLikedSongs 
 }: AppSidebarProps) {
   const { open } = useSidebar();
   const location = useLocation();
@@ -86,7 +92,36 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <div className="px-6 py-4">
+        <div className="px-6 py-2">
+          <div className="h-px bg-border" />
+        </div>
+
+        {/* Library Section */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-6 text-muted-foreground uppercase text-xs font-semibold tracking-wider">
+            Library
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={onPlayLikedSongs}
+                  className="px-6 py-3 text-sidebar-foreground hover:text-primary transition-colors cursor-pointer"
+                >
+                  <Heart className="h-5 w-5" />
+                  {open && (
+                    <span className="flex items-center justify-between flex-1">
+                      <span>Liked Songs</span>
+                      <span className="text-xs text-muted-foreground">{likedSongsCount}</span>
+                    </span>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <div className="px-6 py-2">
           <div className="h-px bg-border" />
         </div>
 

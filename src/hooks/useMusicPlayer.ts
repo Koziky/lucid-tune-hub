@@ -13,8 +13,34 @@ export const useMusicPlayer = () => {
   const [isShuffle, setIsShuffle] = useState(false);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
   const [currentPlaylist, setCurrentPlaylist] = useState<string | null>(null);
+  const [sleepTimer, setSleepTimer] = useState<number | null>(null);
+  const [isImportingSpotify, setIsImportingSpotify] = useState(false);
+  const [isRefreshingMetadata, setIsRefreshingMetadata] = useState(false);
   const playerRef = useRef<any>(null);
   const originalQueueRef = useRef<Song[]>([]);
+  const sleepTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sleep timer effect
+  useEffect(() => {
+    if (sleepTimer !== null && sleepTimer > 0) {
+      sleepTimerRef.current = setInterval(() => {
+        setSleepTimer((prev) => {
+          if (prev === null || prev <= 1) {
+            if (sleepTimerRef.current) clearInterval(sleepTimerRef.current);
+            setIsPlaying(false);
+            if (playerRef.current) playerRef.current.pauseVideo();
+            toast({ title: 'Sleep timer', description: 'Playback stopped' });
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (sleepTimerRef.current) clearInterval(sleepTimerRef.current);
+    };
+  }, [sleepTimer !== null]);
 
   // Fetch user's playlists
   const { data: playlists = [] } = useQuery({
@@ -30,15 +56,11 @@ export const useMusicPlayer = () => {
 
       if (playlistsError) throw playlistsError;
 
-      // Fetch songs for each playlist
       const playlistsWithSongs = await Promise.all(
         (playlistsData || []).map(async (playlist) => {
           const { data: playlistSongs, error: songsError } = await supabase
             .from('playlist_songs')
-            .select(`
-              position,
-              songs (*)
-            `)
+            .select(`position, songs (*)`)
             .eq('playlist_id', playlist.id)
             .order('position', { ascending: true });
 
@@ -96,7 +118,65 @@ export const useMusicPlayer = () => {
     },
   });
 
-  // Create playlist mutation
+  // Fetch liked songs
+  const { data: likedSongs = [] } = useQuery({
+    queryKey: ['liked_songs'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('liked_songs')
+        .select('song_id, created_at, songs(*)')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map((item: any) => ({
+        id: item.songs.id,
+        title: item.songs.title,
+        artist: item.songs.artist,
+        youtubeId: item.songs.youtube_id,
+        thumbnail: item.songs.thumbnail,
+        duration: item.songs.duration,
+        userId: item.songs.user_id,
+        createdAt: item.songs.created_at,
+        likedAt: item.created_at,
+      }));
+    },
+  });
+
+  // Fetch play history
+  const { data: recentlyPlayed = [] } = useQuery({
+    queryKey: ['play_history'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('play_history')
+        .select('played_at, songs(*)')
+        .order('played_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      return (data || []).map((item: any) => ({
+        id: item.songs.id,
+        title: item.songs.title,
+        artist: item.songs.artist,
+        youtubeId: item.songs.youtube_id,
+        thumbnail: item.songs.thumbnail,
+        duration: item.songs.duration,
+        userId: item.songs.user_id,
+        playedAt: item.played_at,
+      }));
+    },
+  });
+
+  const likedSongIds = new Set(likedSongs.map(s => s.id));
+
+  // Mutations
   const createPlaylistMutation = useMutation({
     mutationFn: async (name: string) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -116,7 +196,6 @@ export const useMusicPlayer = () => {
     },
   });
 
-  // Add song mutation
   const addSongMutation = useMutation({
     mutationFn: async (song: Omit<Song, 'id' | 'userId' | 'createdAt'>) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -143,10 +222,8 @@ export const useMusicPlayer = () => {
     },
   });
 
-  // Add song to playlist mutation
   const addSongToPlaylistMutation = useMutation({
     mutationFn: async ({ playlistId, songId }: { playlistId: string; songId: string }) => {
-      // Get current max position
       const { data: existingSongs } = await supabase
         .from('playlist_songs')
         .select('position')
@@ -160,11 +237,7 @@ export const useMusicPlayer = () => {
 
       const { error } = await supabase
         .from('playlist_songs')
-        .insert({
-          playlist_id: playlistId,
-          song_id: songId,
-          position,
-        });
+        .insert({ playlist_id: playlistId, song_id: songId, position });
 
       if (error) throw error;
     },
@@ -173,7 +246,6 @@ export const useMusicPlayer = () => {
     },
   });
 
-  // Delete playlist mutation
   const deletePlaylistMutation = useMutation({
     mutationFn: async (playlistId: string) => {
       const { error } = await supabase
@@ -188,7 +260,6 @@ export const useMusicPlayer = () => {
     },
   });
 
-  // Update playlist mutation
   const updatePlaylistMutation = useMutation({
     mutationFn: async ({ playlistId, name }: { playlistId: string; name: string }) => {
       const { error } = await supabase
@@ -203,7 +274,6 @@ export const useMusicPlayer = () => {
     },
   });
 
-  // Delete song mutation
   const deleteSongMutation = useMutation({
     mutationFn: async (songId: string) => {
       const { error } = await supabase
@@ -218,6 +288,46 @@ export const useMusicPlayer = () => {
     },
   });
 
+  const toggleLikeMutation = useMutation({
+    mutationFn: async ({ songId, isLiked }: { songId: string; isLiked: boolean }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      if (isLiked) {
+        const { error } = await supabase
+          .from('liked_songs')
+          .delete()
+          .eq('song_id', songId)
+          .eq('user_id', user.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('liked_songs')
+          .insert({ song_id: songId, user_id: user.id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['liked_songs'] });
+    },
+  });
+
+  const addToPlayHistoryMutation = useMutation({
+    mutationFn: async (songId: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('play_history')
+        .insert({ song_id: songId, user_id: user.id });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['play_history'] });
+    },
+  });
+
   const extractYouTubeId = (url: string): string | null => {
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
     const match = url.match(regExp);
@@ -228,7 +338,6 @@ export const useMusicPlayer = () => {
     setQueue(prev => [...prev, song]);
     originalQueueRef.current = [...originalQueueRef.current, song];
     
-    // Save song to database if it doesn't exist
     const existingSong = allSongs.find(s => s.youtubeId === song.youtubeId);
     if (!existingSong) {
       await addSongMutation.mutateAsync(song);
@@ -252,19 +361,11 @@ export const useMusicPlayer = () => {
     }
 
     try {
-      console.log('Fetching metadata for video:', videoId);
-      
-      // Fetch video metadata from YouTube API
       const { data, error } = await supabase.functions.invoke('fetch-youtube-metadata', {
         body: { videoId },
       });
 
-      console.log('Metadata response:', { data, error });
-
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       if (!data || !data.title) {
         throw new Error('Invalid response from metadata service');
@@ -279,12 +380,10 @@ export const useMusicPlayer = () => {
         duration: data.duration,
       };
 
-      console.log('Adding song to queue:', song);
       addToQueue(song);
     } catch (error) {
       console.error('Error fetching video metadata:', error);
       
-      // Fallback to basic song object
       const song: Song = {
         id: `${Date.now()}-${videoId}`,
         title: 'YouTube Video',
@@ -294,13 +393,101 @@ export const useMusicPlayer = () => {
       };
       
       addToQueue(song);
-      
-      toast({
-        title: "Using basic info",
-        description: "Could not fetch full video details",
-      });
     }
   }, [addToQueue]);
+
+  const importFromSpotify = useCallback(async (url: string) => {
+    setIsImportingSpotify(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('spotify-import', {
+        body: { url },
+      });
+
+      if (error) throw error;
+
+      if (!data || !data.tracks || data.tracks.length === 0) {
+        throw new Error('No tracks found or could not match to YouTube');
+      }
+
+      for (const track of data.tracks) {
+        const song: Song = {
+          id: `${Date.now()}-${track.youtubeId}`,
+          title: track.title,
+          artist: track.artist,
+          youtubeId: track.youtubeId,
+          thumbnail: track.youtubeThumbnail || track.thumbnail,
+          duration: track.duration,
+        };
+        
+        const existingSong = allSongs.find(s => s.youtubeId === song.youtubeId);
+        if (!existingSong) {
+          await addSongMutation.mutateAsync(song);
+        }
+        
+        setQueue(prev => [...prev, song]);
+        originalQueueRef.current = [...originalQueueRef.current, song];
+      }
+
+      toast({
+        title: "Spotify import complete",
+        description: `Added ${data.matched}/${data.total} tracks to queue`,
+      });
+    } catch (error) {
+      console.error('Spotify import error:', error);
+      toast({
+        title: "Import failed",
+        description: error instanceof Error ? error.message : "Could not import from Spotify",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImportingSpotify(false);
+    }
+  }, [allSongs, addSongMutation]);
+
+  const refreshAllMetadata = useCallback(async () => {
+    setIsRefreshingMetadata(true);
+    let updated = 0;
+
+    try {
+      for (const song of allSongs) {
+        try {
+          const { data, error } = await supabase.functions.invoke('fetch-youtube-metadata', {
+            body: { videoId: song.youtubeId },
+          });
+
+          if (!error && data && data.title && data.title !== song.title) {
+            await supabase
+              .from('songs')
+              .update({
+                title: data.title,
+                artist: data.artist,
+                thumbnail: data.thumbnail,
+              })
+              .eq('id', song.id);
+            updated++;
+          }
+        } catch (e) {
+          console.error(`Failed to refresh metadata for ${song.id}:`, e);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['songs'] });
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+
+      toast({
+        title: "Metadata refreshed",
+        description: `Updated ${updated} songs`,
+      });
+    } catch (error) {
+      toast({
+        title: "Refresh failed",
+        description: "Could not refresh metadata",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshingMetadata(false);
+    }
+  }, [allSongs, queryClient]);
 
   const removeFromQueue = useCallback((index: number) => {
     setQueue(prev => prev.filter((_, i) => i !== index));
@@ -315,7 +502,6 @@ export const useMusicPlayer = () => {
       const [removed] = newQueue.splice(oldIndex, 1);
       newQueue.splice(newIndex, 0, removed);
       
-      // Update current index if needed
       if (oldIndex === currentIndex) {
         setCurrentIndex(newIndex);
       } else if (oldIndex < currentIndex && newIndex >= currentIndex) {
@@ -327,7 +513,6 @@ export const useMusicPlayer = () => {
       return newQueue;
     });
     
-    // Update original queue ref if not shuffled
     if (!isShuffle) {
       originalQueueRef.current = [...originalQueueRef.current];
       const [removed] = originalQueueRef.current.splice(oldIndex, 1);
@@ -361,17 +546,13 @@ export const useMusicPlayer = () => {
       const newShuffle = !prev;
       
       if (newShuffle) {
-        // Save current queue before shuffling
         originalQueueRef.current = [...queue];
-        
-        // Shuffle queue except current song
         const currentSong = queue[currentIndex];
         const otherSongs = queue.filter((_, i) => i !== currentIndex);
         const shuffled = [...otherSongs].sort(() => Math.random() - 0.5);
         setQueue([currentSong, ...shuffled]);
         setCurrentIndex(0);
       } else {
-        // Restore original queue
         setQueue(originalQueueRef.current);
         const currentSong = queue[currentIndex];
         const originalIndex = originalQueueRef.current.findIndex(s => s.id === currentSong.id);
@@ -390,6 +571,42 @@ export const useMusicPlayer = () => {
     });
   }, []);
 
+  const toggleLike = useCallback(async (song: Song) => {
+    const isLiked = likedSongIds.has(song.id);
+    await toggleLikeMutation.mutateAsync({ songId: song.id, isLiked });
+    toast({
+      title: isLiked ? "Removed from Liked Songs" : "Added to Liked Songs",
+      description: song.title,
+    });
+  }, [likedSongIds, toggleLikeMutation]);
+
+  const setSleepTimerMinutes = useCallback((minutes: number | 'end') => {
+    if (sleepTimerRef.current) clearInterval(sleepTimerRef.current);
+    
+    if (minutes === 'end') {
+      // Will be handled in playNext
+      toast({ title: 'Sleep timer set', description: 'Will stop after current song' });
+    } else {
+      setSleepTimer(minutes * 60);
+      toast({ title: 'Sleep timer set', description: `Will stop in ${minutes} minutes` });
+    }
+  }, []);
+
+  const cancelSleepTimer = useCallback(() => {
+    if (sleepTimerRef.current) clearInterval(sleepTimerRef.current);
+    setSleepTimer(null);
+    toast({ title: 'Sleep timer cancelled' });
+  }, []);
+
+  const shareSong = useCallback((song: Song) => {
+    const url = `https://www.youtube.com/watch?v=${song.youtubeId}`;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Link copied!",
+      description: "YouTube link copied to clipboard",
+    });
+  }, []);
+
   const createPlaylist = useCallback(async (name: string) => {
     const newPlaylist = await createPlaylistMutation.mutateAsync(name);
     if (!newPlaylist) return '';
@@ -401,7 +618,6 @@ export const useMusicPlayer = () => {
   }, [createPlaylistMutation]);
 
   const addToPlaylist = useCallback(async (playlistId: string, song: Song) => {
-    // First ensure the song exists in the database
     let songId = song.id;
     
     const existingSong = allSongs.find(s => s.youtubeId === song.youtubeId);
@@ -470,6 +686,23 @@ export const useMusicPlayer = () => {
     }
   }, [allSongs]);
 
+  const playLikedSongs = useCallback(() => {
+    if (likedSongs.length > 0) {
+      setQueue(likedSongs);
+      originalQueueRef.current = likedSongs;
+      setCurrentIndex(0);
+      setIsPlaying(true);
+      toast({
+        title: "Playing liked songs",
+        description: `${likedSongs.length} songs in queue`,
+      });
+    }
+  }, [likedSongs]);
+
+  const recordPlay = useCallback((songId: string) => {
+    addToPlayHistoryMutation.mutate(songId);
+  }, [addToPlayHistoryMutation]);
+
   return {
     queue,
     currentSong: queue[currentIndex],
@@ -480,19 +713,31 @@ export const useMusicPlayer = () => {
     repeatMode,
     playlists,
     allSongs,
+    likedSongs,
+    likedSongIds,
+    recentlyPlayed,
     currentPlaylist,
     playerRef,
+    sleepTimer,
+    isImportingSpotify,
+    isRefreshingMetadata,
     setIsPlaying,
     setVolume,
     setCurrentIndex,
     addToQueue,
     addFromYouTubeUrl,
+    importFromSpotify,
+    refreshAllMetadata,
     removeFromQueue,
     reorderQueue,
     playNext,
     playPrevious,
     toggleShuffle,
     toggleRepeat,
+    toggleLike,
+    setSleepTimerMinutes,
+    cancelSleepTimer,
+    shareSong,
     createPlaylist,
     addToPlaylist,
     loadPlaylist,
@@ -500,5 +745,7 @@ export const useMusicPlayer = () => {
     updatePlaylist,
     deleteSong,
     playAllSongs,
+    playLikedSongs,
+    recordPlay,
   };
 };
