@@ -14,6 +14,64 @@ export type Database = {
   }
   public: {
     Tables: {
+      liked_songs: {
+        Row: {
+          created_at: string | null
+          id: string
+          song_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          song_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          song_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liked_songs_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      play_history: {
+        Row: {
+          id: string
+          played_at: string | null
+          song_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          played_at?: string | null
+          song_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          played_at?: string | null
+          song_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "play_history_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       playlist_songs: {
         Row: {
           added_at: string | null
