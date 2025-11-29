@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import YouTube from 'react-youtube';
 import { useMusicPlayer } from '@/hooks/useMusicPlayer';
+import { useProfile } from '@/hooks/useProfile';
 import { 
   AddSong, 
   NowPlaying, 
@@ -11,6 +12,7 @@ import {
   SleepTimerOptions,
   RefreshMetadataButton 
 } from '@/components/MusicPlayer';
+import { ProfileDialog } from '@/components/ProfileDialog';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Input } from '@/components/ui/input';
@@ -85,12 +87,15 @@ const Index = () => {
     recordPlay,
   } = useMusicPlayer();
 
+  const { profile, updateProfile, uploadAvatar } = useProfile();
+
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [previousVolume, setPreviousVolume] = useState(50);
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [isYourMusicOpen, setIsYourMusicOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [editingPlaylist, setEditingPlaylist] = useState<{ id: string; name: string } | null>(null);
   const [deleteConfirmPlaylist, setDeleteConfirmPlaylist] = useState<string | null>(null);
   const [deleteSongId, setDeleteSongId] = useState<string | null>(null);
@@ -259,11 +264,13 @@ const Index = () => {
           playlists={playlists}
           likedSongsCount={likedSongs.length}
           recentlyPlayedCount={recentlyPlayed.length}
+          profile={profile}
           onCreatePlaylist={() => setIsCreatePlaylistOpen(true)}
           onOpenYourMusic={() => setIsYourMusicOpen(true)}
           onEditPlaylist={handleEditPlaylist}
           onDeletePlaylist={(id) => setDeleteConfirmPlaylist(id)}
           onPlayLikedSongs={playLikedSongs}
+          onOpenProfile={() => setIsProfileOpen(true)}
         />
         
         <main className="flex-1 flex flex-col">
@@ -666,6 +673,15 @@ const Index = () => {
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      {/* Profile Dialog */}
+      <ProfileDialog
+        open={isProfileOpen}
+        onOpenChange={setIsProfileOpen}
+        profile={profile}
+        onUpdateProfile={updateProfile}
+        onUploadAvatar={uploadAvatar}
+      />
     </SidebarProvider>
   );
 };

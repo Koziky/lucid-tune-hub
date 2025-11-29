@@ -1,7 +1,8 @@
-import { Home, Music2, ListMusic, Plus, MoreVertical, Pencil, Trash2, Heart, Clock } from 'lucide-react';
+import { Home, Music2, ListMusic, Plus, MoreVertical, Pencil, Trash2, Heart, User, Settings } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { Playlist } from '@/types/music';
+import { Profile } from '@/hooks/useProfile';
 import {
   Sidebar,
   SidebarContent,
@@ -11,6 +12,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const mainItems = [
   { title: 'Home', url: '/', icon: Home },
@@ -30,22 +33,26 @@ interface AppSidebarProps {
   playlists: Playlist[];
   likedSongsCount?: number;
   recentlyPlayedCount?: number;
+  profile?: Profile | null;
   onCreatePlaylist: () => void;
   onOpenYourMusic: () => void;
   onEditPlaylist: (playlistId: string, currentName: string) => void;
   onDeletePlaylist: (playlistId: string) => void;
   onPlayLikedSongs?: () => void;
+  onOpenProfile?: () => void;
 }
 
 export function AppSidebar({ 
   playlists, 
   likedSongsCount = 0,
   recentlyPlayedCount = 0,
+  profile,
   onCreatePlaylist, 
   onOpenYourMusic,
   onEditPlaylist,
   onDeletePlaylist,
-  onPlayLikedSongs 
+  onPlayLikedSongs,
+  onOpenProfile,
 }: AppSidebarProps) {
   const { open } = useSidebar();
   const location = useLocation();
@@ -196,6 +203,27 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      {/* Profile Footer */}
+      <SidebarFooter className="border-t border-border p-4">
+        <button
+          onClick={onOpenProfile}
+          className="flex items-center gap-3 w-full p-2 rounded-lg hover:bg-muted/30 transition-colors"
+        >
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={profile?.avatar_url || ''} />
+            <AvatarFallback className="bg-primary/20 text-primary">
+              {profile?.username?.[0]?.toUpperCase() || <User className="h-5 w-5" />}
+            </AvatarFallback>
+          </Avatar>
+          {open && (
+            <div className="flex-1 text-left min-w-0">
+              <p className="font-medium truncate">{profile?.username || 'Set username'}</p>
+              <p className="text-xs text-muted-foreground">Edit profile</p>
+            </div>
+          )}
+        </button>
+      </SidebarFooter>
     </Sidebar>
   );
 }
