@@ -71,6 +71,45 @@ async function getPlaylistTracks(token: string, playlistId: string): Promise<Spo
   return tracks;
 }
 
+async function getAlbumTracks(token: string, albumId: string): Promise<SpotifyTrack[]> {
+  // First get album info for the cover image
+  const albumRes = await fetch(`https://api.spotify.com/v1/albums/${albumId}`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+
+  if (!albumRes.ok) {
+    throw new Error('Failed to fetch album');
+  }
+
+  const album = await albumRes.json();
+  const albumImage = album.images[0]?.url || '';
+
+  const tracks: SpotifyTrack[] = [];
+  let nextUrl: string | null = `https://api.spotify.com/v1/albums/${albumId}/tracks?limit=50`;
+
+  while (nextUrl) {
+    const res: Response = await fetch(nextUrl, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      throw new Error('Failed to fetch album tracks');
+    }
+
+    const json: { items: any[]; next: string | null } = await res.json();
+    // Album tracks don't include album info, so we add it
+    tracks.push(...json.items.map((item: any) => ({
+      name: item.name,
+      artists: item.artists,
+      album: { images: [{ url: albumImage }] },
+      duration_ms: item.duration_ms,
+    })));
+    nextUrl = json.next;
+  }
+
+  return tracks;
+}
+
 async function searchYouTube(query: string): Promise<{ videoId: string; title: string; thumbnail: string } | null> {
   const youtubeApiKey = Deno.env.get('YOUTUBE_API_KEY');
   
@@ -101,7 +140,7 @@ async function searchYouTube(query: string): Promise<{ videoId: string; title: s
   };
 }
 
-function extractSpotifyId(url: string): { type: 'track' | 'playlist'; id: string } | null {
+function extractSpotifyId(url: string): { type: 'track' | 'playlist' | 'album'; id: string } | null {
   // Handle various Spotify URL formats
   const trackMatch = url.match(/spotify\.com\/track\/([a-zA-Z0-9]+)/);
   if (trackMatch) {
@@ -113,6 +152,11 @@ function extractSpotifyId(url: string): { type: 'track' | 'playlist'; id: string
     return { type: 'playlist', id: playlistMatch[1] };
   }
 
+  const albumMatch = url.match(/spotify\.com\/album\/([a-zA-Z0-9]+)/);
+  if (albumMatch) {
+    return { type: 'album', id: albumMatch[1] };
+  }
+
   // Handle spotify:track:id format
   const trackUriMatch = url.match(/spotify:track:([a-zA-Z0-9]+)/);
   if (trackUriMatch) {
@@ -122,6 +166,11 @@ function extractSpotifyId(url: string): { type: 'track' | 'playlist'; id: string
   const playlistUriMatch = url.match(/spotify:playlist:([a-zA-Z0-9]+)/);
   if (playlistUriMatch) {
     return { type: 'playlist', id: playlistUriMatch[1] };
+  }
+
+  const albumUriMatch = url.match(/spotify:album:([a-zA-Z0-9]+)/);
+  if (albumUriMatch) {
+    return { type: 'album', id: albumUriMatch[1] };
   }
 
   return null;
@@ -155,6 +204,8 @@ serve(async (req) => {
     if (spotifyInfo.type === 'track') {
       const track = await getTrack(token, spotifyInfo.id);
       tracks = [track];
+    } else if (spotifyInfo.type === 'album') {
+      tracks = await getAlbumTracks(token, spotifyInfo.id);
     } else {
       tracks = await getPlaylistTracks(token, spotifyInfo.id);
     }
