@@ -17,25 +17,40 @@ async function getSpotifyToken(): Promise<string> {
   const clientId = Deno.env.get('SPOTIFY_CLIENT_ID');
   const clientSecret = Deno.env.get('SPOTIFY_CLIENT_SECRET');
 
+  console.log('Checking Spotify credentials...');
+  console.log('Client ID exists:', !!clientId);
+  console.log('Client Secret exists:', !!clientSecret);
+
   if (!clientId || !clientSecret) {
     throw new Error('Spotify credentials not configured');
   }
+
+  // Use TextEncoder for proper base64 encoding
+  const credentials = `${clientId}:${clientSecret}`;
+  const encoder = new TextEncoder();
+  const data = encoder.encode(credentials);
+  const base64Credentials = btoa(String.fromCharCode(...data));
+
+  console.log('Making token request to Spotify...');
 
   const response = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+      'Authorization': `Basic ${base64Credentials}`,
     },
     body: 'grant_type=client_credentials',
   });
 
   if (!response.ok) {
-    throw new Error('Failed to get Spotify token');
+    const errorText = await response.text();
+    console.error('Spotify token error:', response.status, errorText);
+    throw new Error(`Failed to get Spotify token: ${response.status} - ${errorText}`);
   }
 
-  const data = await response.json();
-  return data.access_token;
+  const tokenData = await response.json();
+  console.log('Got Spotify token successfully');
+  return tokenData.access_token;
 }
 
 async function getTrack(token: string, trackId: string): Promise<SpotifyTrack> {
