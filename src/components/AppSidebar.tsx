@@ -1,4 +1,4 @@
-import { Home, Music2, ListMusic, Plus, MoreVertical, Pencil, Trash2, Heart, User, Settings } from 'lucide-react';
+import { Home, Music2, ListMusic, Plus, MoreVertical, Pencil, Trash2, Heart, User, Settings, PlusCircle } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { Playlist } from '@/types/music';
@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const mainItems = [
   { title: 'Home', url: '/', icon: Home },
+  { title: 'Add Music', url: '/add-music', icon: PlusCircle },
 ];
 
 interface AppSidebarProps {

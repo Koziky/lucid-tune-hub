@@ -3,22 +3,20 @@ import YouTube from 'react-youtube';
 import { useMusicPlayer } from '@/hooks/useMusicPlayer';
 import { useProfile } from '@/hooks/useProfile';
 import { 
-  AddSong, 
   NowPlaying, 
   PlayerControls, 
-  Queue, 
   VolumeControl, 
-  PlaylistManager,
   SleepTimerOptions,
   RefreshMetadataButton 
 } from '@/components/MusicPlayer';
 import { ProfileDialog } from '@/components/ProfileDialog';
+import { MusicSection } from '@/components/Home/MusicSection';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Music2, Play, LogOut, Trash2, PlayCircle, Search, Heart, Clock, RefreshCw } from 'lucide-react';
+import { Music2, Play, LogOut, Trash2, PlayCircle, Search, Heart, Clock, RefreshCw, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
@@ -39,6 +37,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Song } from '@/types/music';
 
 const Index = () => {
   const {
@@ -57,17 +56,12 @@ const Index = () => {
     currentPlaylist,
     playerRef,
     sleepTimer,
-    isImportingSpotify,
     isRefreshingMetadata,
     setIsPlaying,
     setVolume,
     setCurrentIndex,
     addToQueue,
-    addFromYouTubeUrl,
-    importFromSpotify,
     refreshAllMetadata,
-    removeFromQueue,
-    reorderQueue,
     playNext,
     playPrevious,
     toggleShuffle,
@@ -77,7 +71,6 @@ const Index = () => {
     cancelSleepTimer,
     shareSong,
     createPlaylist,
-    addToPlaylist,
     loadPlaylist,
     deletePlaylist,
     updatePlaylist,
@@ -101,6 +94,20 @@ const Index = () => {
   const [deleteSongId, setDeleteSongId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSleepTimerOpen, setIsSleepTimerOpen] = useState(false);
+
+  // Get unique recently played songs (no duplicates)
+  const uniqueRecentlyPlayed = recentlyPlayed.reduce((acc: Song[], song: any) => {
+    if (!acc.find(s => s.id === song.id)) {
+      acc.push(song);
+    }
+    return acc;
+  }, []).slice(0, 10);
+
+  // Get top/most played songs (based on play count in history)
+  const topSongs = allSongs.slice(0, 10);
+
+  // Get recommended songs (shuffle all songs for variety)
+  const recommendedSongs = [...allSongs].sort(() => Math.random() - 0.5).slice(0, 10);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -257,6 +264,12 @@ const Index = () => {
     return `${diffDays}d ago`;
   };
 
+  const handlePlaySong = (song: Song) => {
+    addToQueue(song);
+  };
+
+  const hasNoMusic = allSongs.length === 0;
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
@@ -294,41 +307,57 @@ const Index = () => {
           {/* Main Content */}
           <div className="flex-1 overflow-auto p-6">
             <div className="max-w-[1800px] mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                {/* Left: Add Song */}
-                <div className="lg:col-span-2">
-                  <AddSong 
-                    onAddFromUrl={addFromYouTubeUrl} 
-                    onImportSpotify={importFromSpotify}
-                    isImporting={isImportingSpotify}
+              {hasNoMusic ? (
+                // Empty state when no music
+                <div className="flex flex-col items-center justify-center py-20">
+                  <Music2 className="h-24 w-24 text-muted-foreground mb-6 opacity-50" />
+                  <h2 className="text-3xl font-bold mb-3">Welcome to GlassBeats</h2>
+                  <p className="text-muted-foreground text-lg mb-8 text-center max-w-md">
+                    Start building your music library by adding songs from YouTube or Spotify
+                  </p>
+                  <Button 
+                    size="lg" 
+                    className="bg-primary text-primary-foreground"
+                    onClick={() => window.location.href = '/add-music'}
+                  >
+                    <Music2 className="h-5 w-5 mr-2" />
+                    Add Your First Song
+                  </Button>
+                </div>
+              ) : (
+                // Music sections
+                <div className="space-y-2">
+                  {/* Recently Played */}
+                  <MusicSection
+                    title="Recently Played"
+                    songs={uniqueRecentlyPlayed}
+                    onPlaySong={handlePlaySong}
+                  />
+
+                  {/* Your Top Music */}
+                  <MusicSection
+                    title="Your Top Music"
+                    songs={topSongs}
+                    onPlaySong={handlePlaySong}
+                  />
+
+                  {/* Liked Songs Section */}
+                  {likedSongs.length > 0 && (
+                    <MusicSection
+                      title="Liked Songs"
+                      songs={likedSongs.slice(0, 10)}
+                      onPlaySong={handlePlaySong}
+                    />
+                  )}
+
+                  {/* Recommended For You */}
+                  <MusicSection
+                    title="Recommended For You"
+                    songs={recommendedSongs}
+                    onPlaySong={handlePlaySong}
                   />
                 </div>
-
-                {/* Right: Playlists */}
-                <div>
-                  <PlaylistManager
-                    playlists={playlists}
-                    currentPlaylistId={currentPlaylist}
-                    onCreatePlaylist={createPlaylist}
-                    onLoadPlaylist={loadPlaylist}
-                  />
-                </div>
-              </div>
-
-              {/* Queue */}
-              <div className="mb-6">
-                <Queue
-                  queue={queue}
-                  currentIndex={currentIndex}
-                  playlists={playlists}
-                  likedSongIds={likedSongIds}
-                  onSongClick={setCurrentIndex}
-                  onRemove={removeFromQueue}
-                  onReorder={reorderQueue}
-                  onAddToPlaylist={addToPlaylist}
-                  onToggleLike={toggleLike}
-                />
-              </div>
+              )}
             </div>
           </div>
 
