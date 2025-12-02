@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
-import YouTube from 'react-youtube';
-import { useMusicPlayer } from '@/hooks/useMusicPlayer';
+import { useState } from 'react';
+import { useMusicPlayerContext } from '@/contexts/MusicPlayerContext';
 import { useProfile } from '@/hooks/useProfile';
 import { 
   AddSong, 
@@ -10,13 +9,15 @@ import {
   VolumeControl, 
   PlaylistManager,
   SleepTimerOptions,
+  RefreshMetadataButton,
 } from '@/components/MusicPlayer';
 import { ProfileDialog } from '@/components/ProfileDialog';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { LogOut } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { LogOut, Music2, Play, Trash2, PlayCircle, Search, Heart, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
@@ -36,6 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const AddMusic = () => {
   const {
@@ -47,6 +49,7 @@ const AddMusic = () => {
     isShuffle,
     repeatMode,
     playlists,
+    allSongs,
     likedSongs,
     likedSongIds,
     recentlyPlayed,
@@ -54,12 +57,16 @@ const AddMusic = () => {
     playerRef,
     sleepTimer,
     isImportingSpotify,
+    isRefreshingMetadata,
+    currentTime,
+    duration,
     setIsPlaying,
     setVolume,
     setCurrentIndex,
     addToQueue,
     addFromYouTubeUrl,
     importFromSpotify,
+    refreshAllMetadata,
     removeFromQueue,
     reorderQueue,
     playNext,
@@ -75,13 +82,13 @@ const AddMusic = () => {
     loadPlaylist,
     deletePlaylist,
     updatePlaylist,
+    deleteSong,
+    playAllSongs,
     playLikedSongs,
-  } = useMusicPlayer();
+  } = useMusicPlayerContext();
 
   const { profile, updateProfile, uploadAvatar } = useProfile();
 
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [previousVolume, setPreviousVolume] = useState(50);
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
@@ -90,59 +97,8 @@ const AddMusic = () => {
   const [deleteConfirmPlaylist, setDeleteConfirmPlaylist] = useState<string | null>(null);
   const [isSleepTimerOpen, setIsSleepTimerOpen] = useState(false);
   const [isYourMusicOpen, setIsYourMusicOpen] = useState(false);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (playerRef.current && isPlaying) {
-        setCurrentTime(playerRef.current.getCurrentTime());
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
-
-  useEffect(() => {
-    if ('mediaSession' in navigator && currentSong) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentSong.title,
-        artist: currentSong.artist,
-        artwork: [
-          { src: currentSong.thumbnail, sizes: '512x512', type: 'image/jpeg' }
-        ]
-      });
-      navigator.mediaSession.setActionHandler('play', () => {
-        if (playerRef.current) {
-          playerRef.current.playVideo();
-          setIsPlaying(true);
-        }
-      });
-      navigator.mediaSession.setActionHandler('pause', () => {
-        if (playerRef.current) {
-          playerRef.current.pauseVideo();
-          setIsPlaying(false);
-        }
-      });
-      navigator.mediaSession.setActionHandler('previoustrack', playPrevious);
-      navigator.mediaSession.setActionHandler('nexttrack', playNext);
-    }
-  }, [currentSong, setIsPlaying, playPrevious, playNext]);
-
-  const handleReady = (event: any) => {
-    playerRef.current = event.target;
-    setDuration(event.target.getDuration());
-    if (isPlaying) {
-      event.target.playVideo();
-    }
-  };
-
-  const handleStateChange = (event: any) => {
-    if (event.data === 0) {
-      playNext();
-    } else if (event.data === 1) {
-      setIsPlaying(true);
-    } else if (event.data === 2) {
-      setIsPlaying(false);
-    }
-  };
+  const [searchQuery, setSearchQuery] = useState('');
+  const [deleteSongId, setDeleteSongId] = useState<string | null>(null);
 
   const handlePlayPause = () => {
     if (playerRef.current) {
@@ -158,7 +114,6 @@ const AddMusic = () => {
   const handleSeek = (value: number[]) => {
     if (playerRef.current) {
       playerRef.current.seekTo(value[0]);
-      setCurrentTime(value[0]);
     }
   };
 
@@ -214,6 +169,26 @@ const AddMusic = () => {
       await deletePlaylist(deleteConfirmPlaylist);
       setDeleteConfirmPlaylist(null);
     }
+  };
+
+  const handleDeleteSong = async () => {
+    if (deleteSongId) {
+      await deleteSong(deleteSongId);
+      setDeleteSongId(null);
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
   };
 
   return (
@@ -332,24 +307,6 @@ const AddMusic = () => {
               </div>
             </div>
           </div>
-
-          {/* Hidden YouTube Player */}
-          {currentSong && (
-            <div className="hidden">
-              <YouTube
-                videoId={currentSong.youtubeId}
-                opts={{
-                  playerVars: {
-                    autoplay: isPlaying ? 1 : 0,
-                    controls: 0,
-                    playsinline: 1,
-                  },
-                }}
-                onReady={handleReady}
-                onStateChange={handleStateChange}
-              />
-            </div>
-          )}
         </main>
       </div>
 
@@ -431,6 +388,204 @@ const AddMusic = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Your Music Dialog */}
+      <Dialog open={isYourMusicOpen} onOpenChange={setIsYourMusicOpen}>
+        <DialogContent className="glass border-border max-w-6xl max-h-[80vh]">
+          <DialogHeader>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <DialogTitle className="text-2xl">Your Music</DialogTitle>
+                  <DialogDescription>{allSongs.length} songs in your library</DialogDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RefreshMetadataButton onRefresh={refreshAllMetadata} isRefreshing={isRefreshingMetadata} />
+                  {allSongs.length > 0 && (
+                    <Button
+                      onClick={() => {
+                        playAllSongs();
+                        setIsYourMusicOpen(false);
+                      }}
+                      className="bg-primary text-primary-foreground"
+                    >
+                      <PlayCircle className="h-4 w-4 mr-2" />
+                      Play All
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="all">All Songs ({allSongs.length})</TabsTrigger>
+              <TabsTrigger value="liked">
+                <Heart className="h-4 w-4 mr-1" />
+                Liked ({likedSongs.length})
+              </TabsTrigger>
+              <TabsTrigger value="recent">
+                <Clock className="h-4 w-4 mr-1" />
+                Recent ({recentlyPlayed.length})
+              </TabsTrigger>
+            </TabsList>
+
+            <div className="mt-4">
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search songs..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 bg-background/50"
+                />
+              </div>
+            </div>
+
+            <TabsContent value="all">
+              {allSongs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Music2 className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />
+                  <h3 className="text-xl font-semibold mb-2">No music yet</h3>
+                  <p className="text-muted-foreground">Add YouTube or Spotify links to start</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[400px] pr-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {allSongs
+                      .filter(song => 
+                        song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        song.artist.toLowerCase().includes(searchQuery.toLowerCase())
+                      )
+                      .map((song) => (
+                        <div key={song.id} className="group relative rounded-lg overflow-hidden bg-muted/30 hover:bg-muted/50 transition-all">
+                          <div className="aspect-square relative">
+                            <img src={song.thumbnail} alt={song.title} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                              <Button
+                                size="icon"
+                                className="h-12 w-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                                onClick={() => addToQueue(song)}
+                              >
+                                <Play className="h-6 w-6 ml-0.5" fill="currentColor" />
+                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="secondary"
+                                  className="h-8 w-8 rounded-full"
+                                  onClick={() => toggleLike(song)}
+                                >
+                                  <Heart className={`h-4 w-4 ${likedSongIds.has(song.id) ? 'fill-primary text-primary' : ''}`} />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="destructive"
+                                  className="h-8 w-8 rounded-full"
+                                  onClick={() => setDeleteSongId(song.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="p-3">
+                            <h4 className="font-semibold text-sm truncate">{song.title}</h4>
+                            <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </TabsContent>
+
+            <TabsContent value="liked">
+              {likedSongs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Heart className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />
+                  <h3 className="text-xl font-semibold mb-2">No liked songs</h3>
+                  <p className="text-muted-foreground">Click the heart icon to like songs</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[400px] pr-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {likedSongs
+                      .filter(song => 
+                        song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        song.artist.toLowerCase().includes(searchQuery.toLowerCase())
+                      )
+                      .map((song) => (
+                        <div key={song.id} className="group relative rounded-lg overflow-hidden bg-muted/30 hover:bg-muted/50 transition-all">
+                          <div className="aspect-square relative">
+                            <img src={song.thumbnail} alt={song.title} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <Button
+                                size="icon"
+                                className="h-12 w-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                                onClick={() => addToQueue(song)}
+                              >
+                                <Play className="h-6 w-6 ml-0.5" fill="currentColor" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="p-3">
+                            <h4 className="font-semibold text-sm truncate">{song.title}</h4>
+                            <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </TabsContent>
+
+            <TabsContent value="recent">
+              {recentlyPlayed.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Clock className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />
+                  <h3 className="text-xl font-semibold mb-2">No recent plays</h3>
+                  <p className="text-muted-foreground">Start listening to build your history</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[400px] pr-4">
+                  <div className="space-y-2">
+                    {recentlyPlayed.map((song: any, index) => (
+                      <div 
+                        key={`${song.id}-${index}`} 
+                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/30 cursor-pointer"
+                        onClick={() => addToQueue(song)}
+                      >
+                        <img src={song.thumbnail} alt={song.title} className="w-12 h-12 object-cover rounded" />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium truncate">{song.title}</h4>
+                          <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{formatTimeAgo(song.playedAt)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Song Confirmation */}
+      <AlertDialog open={deleteSongId !== null} onOpenChange={(open) => !open && setDeleteSongId(null)}>
+        <AlertDialogContent className="glass border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Song?</AlertDialogTitle>
+            <AlertDialogDescription>This will remove the song from your library and all playlists.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteSong} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Profile Dialog */}
       <ProfileDialog
