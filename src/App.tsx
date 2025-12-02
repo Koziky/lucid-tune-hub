@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { MusicPlayerProvider } from "@/contexts/MusicPlayerContext";
+import { GlobalPlayer } from "@/components/GlobalPlayer";
 import Index from "./pages/Index";
 import AddMusic from "./pages/AddMusic";
 import PlaylistDetail from "./pages/PlaylistDetail";
@@ -45,13 +47,16 @@ const AppRoutes = () => {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Index />} />
-      <Route path="/add-music" element={<AddMusic />} />
-      <Route path="/playlist/:id" element={<PlaylistDetail />} />
-      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <MusicPlayerProvider>
+      <GlobalPlayer />
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/add-music" element={<AddMusic />} />
+        <Route path="/playlist/:id" element={<PlaylistDetail />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </MusicPlayerProvider>
   );
 };
 

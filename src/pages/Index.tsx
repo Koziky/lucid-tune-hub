@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
-import YouTube from 'react-youtube';
-import { useMusicPlayer } from '@/hooks/useMusicPlayer';
+import { useState } from 'react';
+import { useMusicPlayerContext } from '@/contexts/MusicPlayerContext';
 import { useProfile } from '@/hooks/useProfile';
 import { 
   NowPlaying, 
@@ -16,7 +15,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Music2, Play, LogOut, Trash2, PlayCircle, Search, Heart, Clock, RefreshCw, Sparkles } from 'lucide-react';
+import { Music2, Play, LogOut, Trash2, PlayCircle, Search, Heart, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
@@ -41,7 +40,6 @@ import { Song } from '@/types/music';
 
 const Index = () => {
   const {
-    queue,
     currentSong,
     currentIndex,
     isPlaying,
@@ -53,10 +51,11 @@ const Index = () => {
     likedSongs,
     likedSongIds,
     recentlyPlayed,
-    currentPlaylist,
-    playerRef,
     sleepTimer,
     isRefreshingMetadata,
+    playerRef,
+    currentTime,
+    duration,
     setIsPlaying,
     setVolume,
     setCurrentIndex,
@@ -77,13 +76,10 @@ const Index = () => {
     deleteSong,
     playAllSongs,
     playLikedSongs,
-    recordPlay,
-  } = useMusicPlayer();
+  } = useMusicPlayerContext();
 
   const { profile, updateProfile, uploadAvatar } = useProfile();
 
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [previousVolume, setPreviousVolume] = useState(50);
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
@@ -109,69 +105,6 @@ const Index = () => {
   // Get recommended songs (shuffle all songs for variety)
   const recommendedSongs = [...allSongs].sort(() => Math.random() - 0.5).slice(0, 10);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (playerRef.current && isPlaying) {
-        setCurrentTime(playerRef.current.getCurrentTime());
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isPlaying]);
-
-  // Media Session API for background playback
-  useEffect(() => {
-    if ('mediaSession' in navigator && currentSong) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentSong.title,
-        artist: currentSong.artist,
-        artwork: [
-          { src: currentSong.thumbnail, sizes: '512x512', type: 'image/jpeg' }
-        ]
-      });
-
-      navigator.mediaSession.setActionHandler('play', () => {
-        if (playerRef.current) {
-          playerRef.current.playVideo();
-          setIsPlaying(true);
-        }
-      });
-      navigator.mediaSession.setActionHandler('pause', () => {
-        if (playerRef.current) {
-          playerRef.current.pauseVideo();
-          setIsPlaying(false);
-        }
-      });
-      navigator.mediaSession.setActionHandler('previoustrack', playPrevious);
-      navigator.mediaSession.setActionHandler('nexttrack', playNext);
-    }
-  }, [currentSong, setIsPlaying, playPrevious, playNext]);
-
-  // Record play when song changes
-  useEffect(() => {
-    if (currentSong && isPlaying) {
-      recordPlay(currentSong.id);
-    }
-  }, [currentSong?.id, isPlaying]);
-
-  const handleReady = (event: any) => {
-    playerRef.current = event.target;
-    setDuration(event.target.getDuration());
-    if (isPlaying) {
-      event.target.playVideo();
-    }
-  };
-
-  const handleStateChange = (event: any) => {
-    if (event.data === 0) {
-      playNext();
-    } else if (event.data === 1) {
-      setIsPlaying(true);
-    } else if (event.data === 2) {
-      setIsPlaying(false);
-    }
-  };
-
   const handlePlayPause = () => {
     if (playerRef.current) {
       if (isPlaying) {
@@ -186,7 +119,6 @@ const Index = () => {
   const handleSeek = (value: number[]) => {
     if (playerRef.current) {
       playerRef.current.seekTo(value[0]);
-      setCurrentTime(value[0]);
     }
   };
 
@@ -405,24 +337,6 @@ const Index = () => {
               </div>
             </div>
           </div>
-
-          {/* Hidden YouTube Player */}
-          {currentSong && (
-            <div className="hidden">
-              <YouTube
-                videoId={currentSong.youtubeId}
-                opts={{
-                  playerVars: {
-                    autoplay: isPlaying ? 1 : 0,
-                    controls: 0,
-                    playsinline: 1,
-                  },
-                }}
-                onReady={handleReady}
-                onStateChange={handleStateChange}
-              />
-            </div>
-          )}
         </main>
       </div>
 
