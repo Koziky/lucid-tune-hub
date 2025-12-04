@@ -38,7 +38,7 @@ interface MusicPlayerContextType {
   toggleShuffle: () => void;
   toggleRepeat: () => void;
   toggleLike: (song: Song) => void;
-  setSleepTimerMinutes: (minutes: number) => void;
+  setSleepTimerMinutes: (minutes: number | 'end') => void;
   cancelSleepTimer: () => void;
   shareSong: (song: Song) => void;
   createPlaylist: (name: string) => Promise<string>;
