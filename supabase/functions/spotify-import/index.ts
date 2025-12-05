@@ -129,20 +129,24 @@ async function searchYouTube(query: string): Promise<{ videoId: string; title: s
   const youtubeApiKey = Deno.env.get('YOUTUBE_API_KEY');
   
   if (!youtubeApiKey) {
-    // Fallback: return null and let client handle it
     console.log('YouTube API key not configured, skipping search');
     return null;
   }
 
   const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=1&key=${youtubeApiKey}`;
   
+  console.log('Searching YouTube for:', query);
+  
   const response = await fetch(searchUrl);
   if (!response.ok) {
-    console.error('YouTube search failed:', response.status);
+    const errorBody = await response.text();
+    console.error('YouTube search failed:', response.status, errorBody);
     return null;
   }
 
   const data = await response.json();
+  console.log('YouTube response items:', data.items?.length || 0);
+  
   if (!data.items || data.items.length === 0) {
     return null;
   }
