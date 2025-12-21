@@ -12,6 +12,7 @@ import {
   RefreshMetadataButton,
 } from '@/components/MusicPlayer';
 import { ProfileDialog } from '@/components/ProfileDialog';
+import { YouTubeSearch } from '@/components/YouTubeSearch';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Input } from '@/components/ui/input';
@@ -97,6 +98,7 @@ const AddMusic = () => {
   const [deleteConfirmPlaylist, setDeleteConfirmPlaylist] = useState<string | null>(null);
   const [isSleepTimerOpen, setIsSleepTimerOpen] = useState(false);
   const [isYourMusicOpen, setIsYourMusicOpen] = useState(false);
+  const [isYouTubeSearchOpen, setIsYouTubeSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteSongId, setDeleteSongId] = useState<string | null>(null);
 
@@ -229,13 +231,23 @@ const AddMusic = () => {
           <div className="flex-1 overflow-auto p-6">
             <div className="max-w-[1800px] mx-auto">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                {/* Left: Add Song */}
-                <div className="lg:col-span-2">
+                {/* Left: Add Song + Search */}
+                <div className="lg:col-span-2 space-y-4">
                   <AddSong 
                     onAddFromUrl={addFromYouTubeUrl} 
                     onImportSpotify={importFromSpotify}
                     isImporting={isImportingSpotify}
                   />
+                  
+                  {/* Search Music Button */}
+                  <Button
+                    onClick={() => setIsYouTubeSearchOpen(true)}
+                    variant="outline"
+                    className="w-full h-14 glass glass-highlight border-primary/30 hover:border-primary hover:bg-primary/10 transition-all group"
+                  >
+                    <Search className="h-5 w-5 mr-3 text-primary group-hover:scale-110 transition-transform" />
+                    <span className="text-lg font-medium">Search YouTube Music</span>
+                  </Button>
                 </div>
 
                 {/* Right: Playlists */}
@@ -594,6 +606,13 @@ const AddMusic = () => {
         profile={profile}
         onUpdateProfile={updateProfile}
         onUploadAvatar={uploadAvatar}
+      />
+
+      {/* YouTube Search */}
+      <YouTubeSearch
+        isOpen={isYouTubeSearchOpen}
+        onClose={() => setIsYouTubeSearchOpen(false)}
+        onAddSong={addFromYouTubeUrl}
       />
     </SidebarProvider>
   );
