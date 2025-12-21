@@ -3,9 +3,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, Play, Plus, Loader2, Music2, X } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
+import { Search, Play, Plus, Loader2, Music2, ListPlus, ListMusic } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Playlist, Song } from '@/types/music';
 
 interface YouTubeResult {
   videoId: string;
@@ -16,11 +25,13 @@ interface YouTubeResult {
 
 interface YouTubeSearchProps {
   onAddSong: (url: string) => void;
+  onAddToPlaylist?: (playlistId: string, song: Song) => void;
+  playlists?: Playlist[];
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const YouTubeSearch = ({ onAddSong, isOpen, onClose }: YouTubeSearchProps) => {
+export const YouTubeSearch = ({ onAddSong, onAddToPlaylist, playlists = [], isOpen, onClose }: YouTubeSearchProps) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<YouTubeResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -64,6 +75,21 @@ export const YouTubeSearch = ({ onAddSong, isOpen, onClose }: YouTubeSearchProps
       toast.error('Failed to add song');
     } finally {
       setAddingId(null);
+    }
+  };
+
+  const handleAddToPlaylist = (result: YouTubeResult, playlistId: string, playlistName: string) => {
+    const song: Song = {
+      id: crypto.randomUUID(),
+      title: result.title,
+      artist: result.channelTitle,
+      youtubeId: result.videoId,
+      thumbnail: result.thumbnail,
+    };
+    
+    if (onAddToPlaylist) {
+      onAddToPlaylist(playlistId, song);
+      toast.success(`Added "${result.title}" to ${playlistName}`);
     }
   };
 
@@ -153,21 +179,51 @@ export const YouTubeSearch = ({ onAddSong, isOpen, onClose }: YouTubeSearchProps
                     </p>
                   </div>
 
-                  <Button
-                    size="sm"
-                    onClick={() => handleAddSong(result)}
-                    disabled={addingId === result.videoId}
-                    className="flex-shrink-0 bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/30 transition-all"
-                  >
-                    {addingId === result.videoId ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add
-                      </>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      onClick={() => handleAddSong(result)}
+                      disabled={addingId === result.videoId}
+                      className="bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/30 transition-all"
+                    >
+                      {addingId === result.videoId ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <ListPlus className="h-4 w-4 mr-1" />
+                          Queue
+                        </>
+                      )}
+                    </Button>
+
+                    {playlists.length > 0 && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-border/50 hover:border-primary/50"
+                          >
+                            <ListMusic className="h-4 w-4 mr-1" />
+                            Playlist
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuLabel>Add to playlist</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {playlists.map((playlist) => (
+                            <DropdownMenuItem
+                              key={playlist.id}
+                              onClick={() => handleAddToPlaylist(result, playlist.id, playlist.name)}
+                            >
+                              <ListMusic className="h-4 w-4 mr-2" />
+                              {playlist.name}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
-                  </Button>
+                  </div>
                 </div>
               ))}
             </div>

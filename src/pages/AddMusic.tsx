@@ -613,6 +613,8 @@ const AddMusic = () => {
         isOpen={isYouTubeSearchOpen}
         onClose={() => setIsYouTubeSearchOpen(false)}
         onAddSong={addFromYouTubeUrl}
+        onAddToPlaylist={addToPlaylist}
+        playlists={playlists}
       />
     </SidebarProvider>
   );
