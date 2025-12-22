@@ -28,7 +28,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 const mainItems = [
   { title: 'Home', url: '/', icon: Home },
   { title: 'Add Music', url: '/add-music', icon: PlusCircle },
-  { title: 'Settings', url: '/settings', icon: Settings },
 ];
 
 interface AppSidebarProps {
@@ -42,6 +41,7 @@ interface AppSidebarProps {
   onDeletePlaylist: (playlistId: string) => void;
   onPlayLikedSongs?: () => void;
   onOpenProfile?: () => void;
+  onOpenSettings?: () => void;
 }
 
 export function AppSidebar({ 
@@ -55,6 +55,7 @@ export function AppSidebar({
   onDeletePlaylist,
   onPlayLikedSongs,
   onOpenProfile,
+  onOpenSettings,
 }: AppSidebarProps) {
   const { open } = useSidebar();
   const location = useLocation();
@@ -95,6 +96,15 @@ export function AppSidebar({
                 >
                   <Music2 className="h-5 w-5" />
                   {open && <span>Your Music</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={onOpenSettings}
+                  className="px-6 py-3 text-sidebar-foreground hover:text-primary transition-colors cursor-pointer"
+                >
+                  <Settings className="h-5 w-5" />
+                  {open && <span>Settings</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

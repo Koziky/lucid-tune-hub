@@ -11,7 +11,6 @@ import { GlobalPlayer } from "@/components/GlobalPlayer";
 import Index from "./pages/Index";
 import AddMusic from "./pages/AddMusic";
 import PlaylistDetail from "./pages/PlaylistDetail";
-import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import { Auth } from "./components/Auth";
 
@@ -56,7 +55,7 @@ const AppRoutes = () => {
           <Route path="/" element={<Index />} />
           <Route path="/add-music" element={<AddMusic />} />
           <Route path="/playlist/:id" element={<PlaylistDetail />} />
-          <Route path="/settings" element={<Settings />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

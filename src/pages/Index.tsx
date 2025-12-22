@@ -9,6 +9,8 @@ import {
   RefreshMetadataButton 
 } from '@/components/MusicPlayer';
 import { ProfileDialog } from '@/components/ProfileDialog';
+import { SettingsDialog } from '@/components/SettingsDialog';
+import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { MusicSection } from '@/components/Home/MusicSection';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
@@ -90,6 +92,7 @@ const Index = () => {
   const [deleteSongId, setDeleteSongId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSleepTimerOpen, setIsSleepTimerOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Get unique recently played songs (no duplicates)
   const uniqueRecentlyPlayed = recentlyPlayed.reduce((acc: Song[], song: any) => {
@@ -216,6 +219,7 @@ const Index = () => {
           onDeletePlaylist={(id) => setDeleteConfirmPlaylist(id)}
           onPlayLikedSongs={playLikedSongs}
           onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
         />
         
         <main className="flex-1 flex flex-col">
@@ -294,45 +298,54 @@ const Index = () => {
           </div>
 
           {/* Bottom Player Bar */}
-          <div className="border-t border-border bg-card/95 backdrop-blur-md p-4 sticky bottom-0">
-            <div className="max-w-[1800px] mx-auto">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                {/* Left: Now Playing */}
-                <div className="md:col-span-1">
-                  <NowPlaying 
-                    song={currentSong} 
-                    isLiked={currentSong ? likedSongIds.has(currentSong.id) : false}
-                    onToggleLike={() => currentSong && toggleLike(currentSong)}
-                    onShare={() => currentSong && shareSong(currentSong)}
-                  />
-                </div>
+          <div className="border-t border-border bg-card/95 backdrop-blur-md sticky bottom-0 overflow-hidden">
+            {/* Visualizer Background */}
+            {currentSong && (
+              <div className="absolute inset-0 opacity-30 pointer-events-none">
+                <AudioVisualizer style="synthwave" barCount={48} />
+              </div>
+            )}
+            
+            <div className="relative z-10 p-4">
+              <div className="max-w-[1800px] mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                  {/* Left: Now Playing */}
+                  <div className="md:col-span-1">
+                    <NowPlaying 
+                      song={currentSong} 
+                      isLiked={currentSong ? likedSongIds.has(currentSong.id) : false}
+                      onToggleLike={() => currentSong && toggleLike(currentSong)}
+                      onShare={() => currentSong && shareSong(currentSong)}
+                    />
+                  </div>
 
-                {/* Center: Player Controls */}
-                <div className="md:col-span-1">
-                  <PlayerControls
-                    isPlaying={isPlaying}
-                    isShuffle={isShuffle}
-                    repeatMode={repeatMode}
-                    onPlayPause={handlePlayPause}
-                    onPrevious={playPrevious}
-                    onNext={playNext}
-                    onToggleShuffle={toggleShuffle}
-                    onToggleRepeat={toggleRepeat}
-                    currentTime={currentTime}
-                    duration={duration}
-                    onSeek={handleSeek}
-                    sleepTimer={sleepTimer}
-                    onSleepTimer={() => setIsSleepTimerOpen(true)}
-                  />
-                </div>
+                  {/* Center: Player Controls */}
+                  <div className="md:col-span-1">
+                    <PlayerControls
+                      isPlaying={isPlaying}
+                      isShuffle={isShuffle}
+                      repeatMode={repeatMode}
+                      onPlayPause={handlePlayPause}
+                      onPrevious={playPrevious}
+                      onNext={playNext}
+                      onToggleShuffle={toggleShuffle}
+                      onToggleRepeat={toggleRepeat}
+                      currentTime={currentTime}
+                      duration={duration}
+                      onSeek={handleSeek}
+                      sleepTimer={sleepTimer}
+                      onSleepTimer={() => setIsSleepTimerOpen(true)}
+                    />
+                  </div>
 
-                {/* Right: Volume */}
-                <div className="md:col-span-1 flex justify-end">
-                  <VolumeControl
-                    volume={volume}
-                    onVolumeChange={handleVolumeChange}
-                    onMuteToggle={handleMuteToggle}
-                  />
+                  {/* Right: Volume */}
+                  <div className="md:col-span-1 flex justify-end">
+                    <VolumeControl
+                      volume={volume}
+                      onVolumeChange={handleVolumeChange}
+                      onMuteToggle={handleMuteToggle}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -624,6 +637,17 @@ const Index = () => {
         profile={profile}
         onUpdateProfile={updateProfile}
         onUploadAvatar={uploadAvatar}
+      />
+
+      {/* Settings Dialog */}
+      <SettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        stats={{
+          playlists: playlists.length,
+          likedSongs: likedSongs.length,
+          recentlyPlayed: recentlyPlayed.length,
+        }}
       />
     </SidebarProvider>
   );
