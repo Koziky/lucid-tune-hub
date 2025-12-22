@@ -28,6 +28,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 const mainItems = [
   { title: 'Home', url: '/', icon: Home },
   { title: 'Add Music', url: '/add-music', icon: PlusCircle },
+  { title: 'Settings', url: '/settings', icon: Settings },
 ];
 
 interface AppSidebarProps {
