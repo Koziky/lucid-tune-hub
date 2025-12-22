@@ -13,6 +13,7 @@ import {
 } from '@/components/MusicPlayer';
 import { ProfileDialog } from '@/components/ProfileDialog';
 import { YouTubeSearch } from '@/components/YouTubeSearch';
+import { YouTubePlaylistImport } from '@/components/YouTubePlaylistImport';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Input } from '@/components/ui/input';
@@ -99,6 +100,7 @@ const AddMusic = () => {
   const [isSleepTimerOpen, setIsSleepTimerOpen] = useState(false);
   const [isYourMusicOpen, setIsYourMusicOpen] = useState(false);
   const [isYouTubeSearchOpen, setIsYouTubeSearchOpen] = useState(false);
+  const [isPlaylistImportOpen, setIsPlaylistImportOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteSongId, setDeleteSongId] = useState<string | null>(null);
 
@@ -240,14 +242,24 @@ const AddMusic = () => {
                   />
                   
                   {/* Search Music Button */}
-                  <Button
-                    onClick={() => setIsYouTubeSearchOpen(true)}
-                    variant="outline"
-                    className="w-full h-14 glass glass-highlight border-primary/30 hover:border-primary hover:bg-primary/10 transition-all group"
-                  >
-                    <Search className="h-5 w-5 mr-3 text-primary group-hover:scale-110 transition-transform" />
-                    <span className="text-lg font-medium">Search YouTube Music</span>
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setIsYouTubeSearchOpen(true)}
+                      variant="outline"
+                      className="flex-1 h-14 glass glass-highlight border-primary/30 hover:border-primary hover:bg-primary/10 transition-all group"
+                    >
+                      <Search className="h-5 w-5 mr-3 text-primary group-hover:scale-110 transition-transform" />
+                      <span className="text-lg font-medium">Search YouTube</span>
+                    </Button>
+                    <Button
+                      onClick={() => setIsPlaylistImportOpen(true)}
+                      variant="outline"
+                      className="flex-1 h-14 glass glass-highlight border-primary/30 hover:border-primary hover:bg-primary/10 transition-all group"
+                    >
+                      <Music2 className="h-5 w-5 mr-3 text-primary group-hover:scale-110 transition-transform" />
+                      <span className="text-lg font-medium">Import Playlist</span>
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Right: Playlists */}
@@ -615,6 +627,17 @@ const AddMusic = () => {
         onAddSong={addFromYouTubeUrl}
         onAddToPlaylist={addToPlaylist}
         playlists={playlists}
+      />
+
+      {/* YouTube Playlist Import */}
+      <YouTubePlaylistImport
+        isOpen={isPlaylistImportOpen}
+        onClose={() => setIsPlaylistImportOpen(false)}
+        onImportSongs={async (videos) => {
+          for (const video of videos) {
+            await addFromYouTubeUrl(video.url);
+          }
+        }}
       />
     </SidebarProvider>
   );

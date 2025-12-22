@@ -215,9 +215,10 @@ export const YouTubeSearch = ({ onAddSong, onAddToPlaylist, playlists = [], isOp
                             <DropdownMenuItem
                               key={playlist.id}
                               onClick={() => handleAddToPlaylist(result, playlist.id, playlist.name)}
+                              className="max-w-[180px]"
                             >
-                              <ListMusic className="h-4 w-4 mr-2" />
-                              {playlist.name}
+                              <ListMusic className="h-4 w-4 mr-2 flex-shrink-0" />
+                              <span className="truncate">{playlist.name}</span>
                             </DropdownMenuItem>
                           ))}
                         </DropdownMenuContent>

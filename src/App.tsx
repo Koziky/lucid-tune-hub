@@ -6,10 +6,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { MusicPlayerProvider } from "@/contexts/MusicPlayerContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { GlobalPlayer } from "@/components/GlobalPlayer";
 import Index from "./pages/Index";
 import AddMusic from "./pages/AddMusic";
 import PlaylistDetail from "./pages/PlaylistDetail";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import { Auth } from "./components/Auth";
 
@@ -47,16 +49,19 @@ const AppRoutes = () => {
   }
 
   return (
-    <MusicPlayerProvider>
-      <GlobalPlayer />
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/add-music" element={<AddMusic />} />
-        <Route path="/playlist/:id" element={<PlaylistDetail />} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </MusicPlayerProvider>
+    <ThemeProvider>
+      <MusicPlayerProvider>
+        <GlobalPlayer />
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/add-music" element={<AddMusic />} />
+          <Route path="/playlist/:id" element={<PlaylistDetail />} />
+          <Route path="/settings" element={<Settings />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </MusicPlayerProvider>
+    </ThemeProvider>
   );
 };
 
