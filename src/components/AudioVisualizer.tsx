@@ -8,29 +8,60 @@ interface AudioVisualizerProps {
 }
 
 export function AudioVisualizer({ className = '', barCount = 32, style = 'synthwave' }: AudioVisualizerProps) {
-  const { isPlaying, currentSong } = useMusicPlayerContext();
+  const { isPlaying, currentSong, currentTime } = useMusicPlayerContext();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const [bars, setBars] = useState<number[]>(Array(barCount).fill(0));
+  const bassRef = useRef(0);
+  const beatRef = useRef(0);
 
-  // Simulate audio visualization since we can't access YouTube audio stream
+  // Simulate audio visualization with bass-responsive behavior
   useEffect(() => {
     if (!isPlaying) {
       // Animate bars down when paused
-      setBars(prev => prev.map(b => Math.max(0, b - 5)));
-      return;
+      const decayInterval = setInterval(() => {
+        setBars(prev => prev.map(b => Math.max(0, b - 8)));
+        bassRef.current = Math.max(0, bassRef.current - 5);
+      }, 50);
+      return () => clearInterval(decayInterval);
     }
 
     let lastTime = 0;
+    let phase = 0;
+    
     const animate = (time: number) => {
-      if (time - lastTime > 50) { // ~20fps for smooth animation
+      if (time - lastTime > 33) { // ~30fps
         lastTime = time;
+        phase += 0.15;
+        
+        // Simulate bass hit detection (random intervals for dynamic feel)
+        const bassHitChance = Math.random();
+        if (bassHitChance > 0.85) {
+          bassRef.current = 80 + Math.random() * 20;
+          beatRef.current = time;
+        } else {
+          bassRef.current = Math.max(0, bassRef.current - 3);
+        }
+        
         setBars(prev =>
           prev.map((_, i) => {
-            // Create varying heights with some randomness for visual effect
-            const baseHeight = Math.sin(time / 200 + i * 0.5) * 30 + 40;
-            const variation = Math.random() * 20;
-            return Math.min(100, Math.max(10, baseHeight + variation));
+            const isBassBar = i < barCount * 0.3; // First 30% are bass bars
+            const isMidBar = i >= barCount * 0.3 && i < barCount * 0.7;
+            
+            let baseHeight;
+            if (isBassBar) {
+              // Bass bars - respond more to bass hits
+              baseHeight = bassRef.current * 0.8 + Math.sin(phase + i * 0.3) * 15;
+            } else if (isMidBar) {
+              // Mid-range bars
+              baseHeight = Math.sin(phase * 2 + i * 0.5) * 35 + 45 + bassRef.current * 0.3;
+            } else {
+              // High frequency bars - faster, more erratic
+              baseHeight = Math.sin(phase * 3 + i * 0.8) * 25 + 35 + Math.random() * 20;
+            }
+            
+            const variation = Math.random() * 15;
+            return Math.min(100, Math.max(5, baseHeight + variation));
           })
         );
       }
@@ -73,33 +104,46 @@ export function AudioVisualizer({ className = '', barCount = 32, style = 'synthw
       const width = canvas.offsetWidth;
       const height = canvas.offsetHeight;
 
-      // Clear with fade effect
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+      // Clear with fade effect - faster fade when bass hits
+      const fadeAmount = isPlaying ? (0.15 + bassRef.current * 0.002) : 0.3;
+      ctx.fillStyle = `rgba(0, 0, 0, ${fadeAmount})`;
       ctx.fillRect(0, 0, width, height);
 
       if (isPlaying) {
-        time += 0.02;
+        // Speed up animation based on bass
+        time += 0.02 + bassRef.current * 0.0005;
 
-        // Draw synthwave sun
+        // Draw synthwave sun - pulses with bass
         const sunY = height * 0.3;
-        const sunRadius = 40;
+        const baseSunRadius = 35;
+        const sunPulse = bassRef.current * 0.15;
+        const sunRadius = baseSunRadius + sunPulse;
+        
         const gradient = ctx.createLinearGradient(width / 2, sunY - sunRadius, width / 2, sunY + sunRadius);
         gradient.addColorStop(0, primaryColor);
         gradient.addColorStop(1, accentColor);
+        
+        // Sun glow effect on bass hit
+        if (bassRef.current > 50) {
+          ctx.shadowColor = primaryColor;
+          ctx.shadowBlur = 20 + bassRef.current * 0.3;
+        }
         
         ctx.beginPath();
         ctx.arc(width / 2, sunY, sunRadius, 0, Math.PI * 2);
         ctx.fillStyle = gradient;
         ctx.fill();
+        ctx.shadowBlur = 0;
 
-        // Draw horizontal lines (grid)
-        ctx.strokeStyle = primaryColor.replace(')', ' / 0.3)').replace('hsl(', 'hsl(');
+        // Draw horizontal lines (grid) - move faster on bass
+        const gridSpeed = 1 + bassRef.current * 0.05;
         ctx.lineWidth = 1;
         for (let i = 0; i < 8; i++) {
-          const y = height * 0.5 + i * 15 + Math.sin(time + i) * 3;
+          const y = height * 0.5 + i * 15 + Math.sin(time * gridSpeed + i) * (3 + bassRef.current * 0.05);
           ctx.beginPath();
           ctx.moveTo(0, y);
           ctx.lineTo(width, y);
+          ctx.strokeStyle = `hsla(${primaryHsl}, 0.3)`;
           ctx.stroke();
         }
 
@@ -110,46 +154,51 @@ export function AudioVisualizer({ className = '', barCount = 32, style = 'synthw
           ctx.beginPath();
           ctx.moveTo(centerX, height * 0.5);
           ctx.lineTo(x, height);
-          ctx.strokeStyle = primaryColor.replace(')', ' / 0.2)').replace('hsl(', 'hsl(');
+          ctx.strokeStyle = `hsla(${primaryHsl}, 0.2)`;
           ctx.stroke();
         }
 
-        // Draw waveform
+        // Draw waveform - more intense on bass
+        const waveIntensity = 1 + bassRef.current * 0.02;
         ctx.beginPath();
         ctx.moveTo(0, height * 0.6);
-        for (let x = 0; x < width; x += 5) {
+        for (let x = 0; x < width; x += 4) {
           const normalizedX = x / width;
-          const waveHeight = Math.sin(normalizedX * 10 + time * 3) * 20 +
+          const waveHeight = (Math.sin(normalizedX * 10 + time * 3) * 20 +
                             Math.sin(normalizedX * 20 + time * 5) * 10 +
-                            Math.sin(normalizedX * 5 + time * 2) * 15;
+                            Math.sin(normalizedX * 5 + time * 2) * 15) * waveIntensity;
           ctx.lineTo(x, height * 0.55 + waveHeight);
         }
         
         const waveGradient = ctx.createLinearGradient(0, height * 0.4, 0, height * 0.7);
-        waveGradient.addColorStop(0, primaryColor.replace(')', ' / 0.8)').replace('hsl(', 'hsl('));
-        waveGradient.addColorStop(1, accentColor.replace(')', ' / 0.4)').replace('hsl(', 'hsl('));
+        waveGradient.addColorStop(0, `hsla(${primaryHsl}, 0.8)`);
+        waveGradient.addColorStop(1, `hsla(${accentHsl}, 0.4)`);
         ctx.strokeStyle = waveGradient;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2 + bassRef.current * 0.03;
         ctx.stroke();
 
-        // Draw bars at bottom
+        // Draw bars at bottom - bass bars are taller
         const barWidth = width / barCount;
         bars.forEach((barHeight, i) => {
           const x = i * barWidth;
-          const h = (barHeight / 100) * height * 0.3;
+          const isBassBar = i < barCount * 0.3;
+          const heightMultiplier = isBassBar ? 0.4 : 0.3;
+          const h = (barHeight / 100) * height * heightMultiplier;
           
           const barGradient = ctx.createLinearGradient(x, height, x, height - h);
           barGradient.addColorStop(0, primaryColor);
-          barGradient.addColorStop(1, accentColor.replace(')', ' / 0.5)').replace('hsl(', 'hsl('));
+          barGradient.addColorStop(1, `hsla(${accentHsl}, 0.5)`);
           
           ctx.fillStyle = barGradient;
           ctx.fillRect(x + 1, height - h, barWidth - 2, h);
           
-          // Glow effect
-          ctx.shadowColor = primaryColor;
-          ctx.shadowBlur = 10;
-          ctx.fillRect(x + 1, height - h, barWidth - 2, 2);
-          ctx.shadowBlur = 0;
+          // Enhanced glow effect on bass bars
+          if (isBassBar && bassRef.current > 40) {
+            ctx.shadowColor = primaryColor;
+            ctx.shadowBlur = 15 + bassRef.current * 0.2;
+            ctx.fillRect(x + 1, height - h, barWidth - 2, 3);
+            ctx.shadowBlur = 0;
+          }
         });
       }
 
@@ -182,7 +231,7 @@ export function AudioVisualizer({ className = '', barCount = 32, style = 'synthw
       {bars.map((height, i) => (
         <div
           key={i}
-          className="bg-gradient-to-t from-primary to-accent rounded-t transition-all duration-100"
+          className="bg-gradient-to-t from-primary to-accent rounded-t transition-all duration-75"
           style={{
             width: `${100 / barCount - 1}%`,
             height: `${height}%`,

@@ -52,6 +52,7 @@ import {
   Share2,
   RefreshCw,
   Loader2,
+  Moon,
 } from 'lucide-react';
 
 // ==================== ADD SONG COMPONENT ====================
@@ -682,35 +683,98 @@ interface SleepTimerDialogProps {
 }
 
 export const SleepTimerOptions = ({ onSelectTime, onCancel, currentTimer }: SleepTimerDialogProps) => {
-  const options = [
-    { label: '15 minutes', value: 15 },
-    { label: '30 minutes', value: 30 },
-    { label: '45 minutes', value: 45 },
+  const [customMinutes, setCustomMinutes] = useState('');
+  
+  const presetOptions = [
+    { label: '15 min', value: 15 },
+    { label: '30 min', value: 30 },
+    { label: '45 min', value: 45 },
     { label: '1 hour', value: 60 },
-    { label: 'End of song', value: 'end' as const },
+    { label: '2 hours', value: 120 },
   ];
 
+  const formatRemainingTime = (seconds: number) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m ${secs}s`;
+    }
+    return `${mins}m ${secs}s`;
+  };
+
+  const handleCustomTime = () => {
+    const mins = parseInt(customMinutes);
+    if (mins > 0 && mins <= 480) {
+      onSelectTime(mins);
+      setCustomMinutes('');
+    }
+  };
+
   return (
-    <div className="space-y-2">
-      {currentTimer && (
-        <Button
-          variant="outline"
-          className="w-full justify-start text-destructive"
-          onClick={onCancel}
-        >
-          Cancel Timer ({Math.ceil(currentTimer / 60)}m remaining)
-        </Button>
+    <div className="space-y-4">
+      {currentTimer !== null && (
+        <div className="p-4 rounded-lg bg-primary/10 border border-primary/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Time remaining</p>
+              <p className="text-2xl font-bold text-primary">{formatRemainingTime(currentTimer)}</p>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={onCancel}
+            >
+              <Moon className="h-4 w-4 mr-1" />
+              Cancel
+            </Button>
+          </div>
+        </div>
       )}
-      {options.map((option) => (
-        <Button
-          key={option.label}
-          variant="outline"
-          className="w-full justify-start"
-          onClick={() => onSelectTime(option.value)}
-        >
-          {option.label}
-        </Button>
-      ))}
+      
+      <div>
+        <p className="text-sm text-muted-foreground mb-2">Quick select</p>
+        <div className="grid grid-cols-3 gap-2">
+          {presetOptions.map((option) => (
+            <Button
+              key={option.label}
+              variant="outline"
+              size="sm"
+              className="h-10"
+              onClick={() => onSelectTime(option.value)}
+            >
+              {option.label}
+            </Button>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10"
+            onClick={() => onSelectTime('end')}
+          >
+            End of song
+          </Button>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-sm text-muted-foreground mb-2">Custom time (minutes)</p>
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            placeholder="Enter minutes..."
+            value={customMinutes}
+            onChange={(e) => setCustomMinutes(e.target.value)}
+            min={1}
+            max={480}
+            className="flex-1"
+            onKeyDown={(e) => e.key === 'Enter' && handleCustomTime()}
+          />
+          <Button onClick={handleCustomTime} disabled={!customMinutes}>
+            Set
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
