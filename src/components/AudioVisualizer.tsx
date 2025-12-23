@@ -82,12 +82,26 @@ export function AudioVisualizer({ className = '', barCount = 32, style = 'synthw
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Get computed CSS colors (CSS variables don't work in canvas)
+    // Get computed CSS colors and parse them for canvas compatibility
     const computedStyle = getComputedStyle(document.documentElement);
     const primaryHsl = computedStyle.getPropertyValue('--primary').trim();
     const accentHsl = computedStyle.getPropertyValue('--accent').trim();
-    const primaryColor = `hsl(${primaryHsl})`;
-    const accentColor = `hsl(${accentHsl})`;
+    
+    // Parse HSL values (format: "280 80% 65%") and convert to proper canvas format
+    const parseHsl = (hsl: string) => {
+      const parts = hsl.split(' ').map(p => p.trim());
+      return { h: parts[0], s: parts[1], l: parts[2] };
+    };
+    
+    const primary = parseHsl(primaryHsl);
+    const accent = parseHsl(accentHsl);
+    
+    const primaryColor = `hsl(${primary.h}, ${primary.s}, ${primary.l})`;
+    const accentColor = `hsl(${accent.h}, ${accent.s}, ${accent.l})`;
+    
+    // Helper to create hsla colors with proper comma syntax
+    const hsla = (parsed: { h: string; s: string; l: string }, alpha: number) => 
+      `hsla(${parsed.h}, ${parsed.s}, ${parsed.l}, ${alpha})`;
 
     const resizeCanvas = () => {
       canvas.width = canvas.offsetWidth * window.devicePixelRatio;
@@ -143,7 +157,7 @@ export function AudioVisualizer({ className = '', barCount = 32, style = 'synthw
           ctx.beginPath();
           ctx.moveTo(0, y);
           ctx.lineTo(width, y);
-          ctx.strokeStyle = `hsla(${primaryHsl}, 0.3)`;
+          ctx.strokeStyle = hsla(primary, 0.3);
           ctx.stroke();
         }
 
@@ -154,7 +168,7 @@ export function AudioVisualizer({ className = '', barCount = 32, style = 'synthw
           ctx.beginPath();
           ctx.moveTo(centerX, height * 0.5);
           ctx.lineTo(x, height);
-          ctx.strokeStyle = `hsla(${primaryHsl}, 0.2)`;
+          ctx.strokeStyle = hsla(primary, 0.2);
           ctx.stroke();
         }
 
@@ -171,8 +185,8 @@ export function AudioVisualizer({ className = '', barCount = 32, style = 'synthw
         }
         
         const waveGradient = ctx.createLinearGradient(0, height * 0.4, 0, height * 0.7);
-        waveGradient.addColorStop(0, `hsla(${primaryHsl}, 0.8)`);
-        waveGradient.addColorStop(1, `hsla(${accentHsl}, 0.4)`);
+        waveGradient.addColorStop(0, hsla(primary, 0.8));
+        waveGradient.addColorStop(1, hsla(accent, 0.4));
         ctx.strokeStyle = waveGradient;
         ctx.lineWidth = 2 + bassRef.current * 0.03;
         ctx.stroke();
@@ -187,7 +201,7 @@ export function AudioVisualizer({ className = '', barCount = 32, style = 'synthw
           
           const barGradient = ctx.createLinearGradient(x, height, x, height - h);
           barGradient.addColorStop(0, primaryColor);
-          barGradient.addColorStop(1, `hsla(${accentHsl}, 0.5)`);
+          barGradient.addColorStop(1, hsla(accent, 0.5));
           
           ctx.fillStyle = barGradient;
           ctx.fillRect(x + 1, height - h, barWidth - 2, h);
