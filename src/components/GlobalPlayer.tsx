@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import YouTube from 'react-youtube';
 import { useMusicPlayerContext } from '@/contexts/MusicPlayerContext';
 
@@ -10,15 +10,18 @@ export function GlobalPlayer() {
     setIsPlaying,
     setDuration,
     playNext,
-    currentIndex,
-    queue,
   } = useMusicPlayerContext();
 
   const lastVideoIdRef = useRef<string | null>(null);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
 
   const handleReady = (event: any) => {
     playerRef.current = event.target;
-    setDuration(event.target.getDuration());
+    setIsPlayerReady(true);
+    const duration = event.target.getDuration();
+    if (duration) {
+      setDuration(duration);
+    }
     if (isPlaying) {
       event.target.playVideo();
     }
@@ -39,29 +42,47 @@ export function GlobalPlayer() {
 
   // Handle song changes - load new video when currentSong changes
   useEffect(() => {
-    if (currentSong && playerRef.current && lastVideoIdRef.current !== currentSong.youtubeId) {
+    if (!currentSong || !isPlayerReady || !playerRef.current) return;
+    
+    // Only load if video ID actually changed
+    if (lastVideoIdRef.current !== currentSong.youtubeId) {
       lastVideoIdRef.current = currentSong.youtubeId;
-      playerRef.current.loadVideoById(currentSong.youtubeId);
-      if (isPlaying) {
-        playerRef.current.playVideo();
+      try {
+        playerRef.current.loadVideoById(currentSong.youtubeId);
+        if (isPlaying) {
+          playerRef.current.playVideo();
+        }
+      } catch (error) {
+        console.error('Error loading video:', error);
       }
     }
-  }, [currentSong?.youtubeId, isPlaying]);
+  }, [currentSong?.youtubeId, isPlayerReady, isPlaying]);
 
   // Keep a hidden audio element to maintain background playback permission
   useEffect(() => {
-    // Create a silent audio context to keep background playback alive
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    gainNode.gain.value = 0; // Silent
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    oscillator.start();
+    let audioContext: AudioContext | null = null;
+    let oscillator: OscillatorNode | null = null;
+    
+    try {
+      // Create a silent audio context to keep background playback alive
+      audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = 0; // Silent
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.start();
+    } catch (error) {
+      console.error('Audio context error:', error);
+    }
 
     return () => {
-      oscillator.stop();
-      audioContext.close();
+      try {
+        if (oscillator) oscillator.stop();
+        if (audioContext) audioContext.close();
+      } catch (error) {
+        // Ignore cleanup errors
+      }
     };
   }, []);
 
@@ -84,6 +105,7 @@ export function GlobalPlayer() {
         onReady={handleReady}
         onStateChange={handleStateChange}
         onEnd={playNext}
+        onError={(e) => console.error('YouTube player error:', e)}
       />
     </div>
   );
