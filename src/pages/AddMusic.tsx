@@ -651,6 +651,13 @@ const AddMusic = () => {
             await addFromYouTubeUrl(video.url);
           }
         }}
+        onCreatePlaylistWithSongs={async (name, videos) => {
+          const playlistId = await createPlaylist(name);
+          for (const video of videos) {
+            await addFromYouTubeUrl(video.url);
+          }
+        }}
+        existingPlaylists={playlists.map(p => ({ name: p.name }))}
       />
 
       {/* Settings Dialog */}

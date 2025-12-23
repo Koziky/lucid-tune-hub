@@ -20,14 +20,44 @@ interface YouTubePlaylistImportProps {
   isOpen: boolean;
   onClose: () => void;
   onImportSongs: (videos: { url: string; title: string }[]) => Promise<void>;
+  onCreatePlaylistWithSongs?: (name: string, videos: { url: string; title: string }[]) => Promise<void>;
+  existingPlaylists?: { name: string }[];
 }
 
-export function YouTubePlaylistImport({ isOpen, onClose, onImportSongs }: YouTubePlaylistImportProps) {
+export function YouTubePlaylistImport({ 
+  isOpen, 
+  onClose, 
+  onImportSongs,
+  onCreatePlaylistWithSongs,
+  existingPlaylists = []
+}: YouTubePlaylistImportProps) {
   const [playlistUrl, setPlaylistUrl] = useState('');
   const [videos, setVideos] = useState<PlaylistVideo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [playlistTitle, setPlaylistTitle] = useState('');
+
+  const getNextYTPName = () => {
+    const ytpPattern = /^YTP(\d+)$/;
+    const existingNumbers = existingPlaylists
+      .map(p => {
+        const match = p.name.match(ytpPattern);
+        return match ? parseInt(match[1]) : 0;
+      })
+      .filter(n => n > 0);
+    
+    // Find the smallest missing number starting from 1
+    let nextNum = 1;
+    const sortedNumbers = [...existingNumbers].sort((a, b) => a - b);
+    for (const num of sortedNumbers) {
+      if (num === nextNum) {
+        nextNum++;
+      } else if (num > nextNum) {
+        break;
+      }
+    }
+    return `YTP${nextNum}`;
+  };
 
   const extractPlaylistId = (url: string): string | null => {
     const match = url.match(/[?&]list=([^&]+)/);
@@ -87,13 +117,20 @@ export function YouTubePlaylistImport({ isOpen, onClose, onImportSongs }: YouTub
 
     setIsImporting(true);
     try {
-      await onImportSongs(
-        selectedVideos.map(v => ({
-          url: `https://www.youtube.com/watch?v=${v.videoId}`,
-          title: v.title,
-        }))
-      );
-      toast.success(`Imported ${selectedVideos.length} songs`);
+      const videosToImport = selectedVideos.map(v => ({
+        url: `https://www.youtube.com/watch?v=${v.videoId}`,
+        title: v.title,
+      }));
+
+      // Create a new playlist with YTP naming
+      if (onCreatePlaylistWithSongs) {
+        const playlistName = getNextYTPName();
+        await onCreatePlaylistWithSongs(playlistName, videosToImport);
+        toast.success(`Created playlist "${playlistName}" with ${selectedVideos.length} songs`);
+      } else {
+        await onImportSongs(videosToImport);
+        toast.success(`Imported ${selectedVideos.length} songs`);
+      }
       handleClose();
     } catch (error) {
       toast.error('Failed to import some songs');
