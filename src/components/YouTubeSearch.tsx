@@ -157,34 +157,34 @@ export const YouTubeSearch = ({ onAddSong, onAddToPlaylist, playlists = [], isOp
               {results.map((result) => (
                 <div
                   key={result.videoId}
-                  className="group flex items-center gap-4 p-3 rounded-xl bg-muted/20 hover:bg-muted/40 transition-all border border-transparent hover:border-primary/20"
+                  className="group flex items-center gap-3 p-3 rounded-xl bg-muted/20 hover:bg-muted/40 transition-all border border-transparent hover:border-primary/20"
                 >
                   <div className="relative flex-shrink-0 overflow-hidden rounded-lg">
                     <img
                       src={result.thumbnail}
                       alt={result.title}
-                      className="w-20 h-14 object-cover transition-transform group-hover:scale-105"
+                      className="w-16 h-12 object-cover transition-transform group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                      <Play className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="white" />
+                      <Play className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="white" />
                     </div>
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium truncate text-foreground group-hover:text-primary transition-colors">
+                  <div className="flex-1 min-w-0 max-w-[200px]">
+                    <h4 className="font-medium truncate text-sm text-foreground group-hover:text-primary transition-colors">
                       {result.title}
                     </h4>
-                    <p className="text-sm text-muted-foreground truncate">
+                    <p className="text-xs text-muted-foreground truncate">
                       {result.channelTitle}
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 ml-auto flex-shrink-0">
                     <Button
                       size="sm"
                       onClick={() => handleAddSong(result)}
                       disabled={addingId === result.videoId}
-                      className="bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/30 transition-all"
+                      className="bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/30 transition-all h-8 px-3"
                     >
                       {addingId === result.videoId ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -202,20 +202,19 @@ export const YouTubeSearch = ({ onAddSong, onAddToPlaylist, playlists = [], isOp
                           <Button
                             size="sm"
                             variant="outline"
-                            className="border-border/50 hover:border-primary/50"
+                            className="border-border/50 hover:border-primary/50 h-8 px-3"
                           >
-                            <ListMusic className="h-4 w-4 mr-1" />
-                            Playlist
+                            <Plus className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuContent align="end" className="w-48 bg-popover border-border z-50">
                           <DropdownMenuLabel>Add to playlist</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           {playlists.map((playlist) => (
                             <DropdownMenuItem
                               key={playlist.id}
                               onClick={() => handleAddToPlaylist(result, playlist.id, playlist.name)}
-                              className="max-w-[180px]"
+                              className="cursor-pointer"
                             >
                               <ListMusic className="h-4 w-4 mr-2 flex-shrink-0" />
                               <span className="truncate">{playlist.name}</span>
